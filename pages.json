@@ -1,0 +1,40 @@
+{
+  "pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "首页"
+      }
+    },
+    {
+      "path": "pages/mine/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/coupon/index",
+      "style": {
+        "navigationBarTitleText": "优惠券中心"
+      }
+    },
+    {
+      "path": "pages/ichibanKuji/index",
+      "style": {
+        "navigationBarTitleText": "抽盒机"
+      }
+    },
+    {
+      "path": "pages/phone-bind/index",
+      "style": {
+        "navigationBarTitleText": "绑定手机号"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Trendy Collection",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  }
+}
