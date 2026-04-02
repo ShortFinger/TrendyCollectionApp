@@ -2,8 +2,12 @@ import { request, setTokens, clearTokens, API_BASE } from './request.js'
 import { setUser, getUser, clearUser } from '../store/user.js'
 
 export async function login() {
-  const [loginErr, loginRes] = await uni.login({ provider: 'weixin' })
-  if (loginErr) throw new Error('wx.login failed')
+  let loginRes
+  try {
+    loginRes = await uni.login({ provider: 'weixin' })
+  } catch (e) {
+    throw new Error('wx.login failed')
+  }
   const data = await request({
     url: '/auth/login',
     method: 'POST',

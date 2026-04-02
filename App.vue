@@ -1,6 +1,7 @@
 <script>
-	import { login, fetchMe } from './utils/auth.js'
-	import { getToken } from './utils/request.js'
+	import { fetchMe } from './utils/auth.js'
+	import { getToken, clearTokens } from './utils/request.js'
+	import { clearUser } from './store/user.js'
 
 	export default {
 		onLaunch: function() {
@@ -16,18 +17,17 @@
 		methods: {
 			async initAuth() {
 				try {
-					if (getToken()) {
+					const token = getToken()
+					if (token) {
+						// token 存在：校验并拉取用户信息
 						await fetchMe()
 					} else {
-						await login()
+						// 无 token：不静默登录（允许用户继续使用公共功能）
 					}
 				} catch (err) {
-					console.error('Auth init failed:', err)
-					try {
-						await login()
-					} catch (e) {
-						console.error('Login failed:', e)
-					}
+					// token 失效/无效：清理本地 token/user（但不强制导航登录页）
+					clearTokens()
+					clearUser()
 				}
 			}
 		}

@@ -129,8 +129,8 @@
 import { ref, computed, onMounted } from 'vue'
 import TabBar from '../../components/TabBar.vue'
 import { state as userState } from '../../store/user.js'
-import { getLoginReady } from '../../store/user.js'
-import { updateProfile, requirePhone } from '../../utils/auth.js'
+import { updateProfile, requirePhone, fetchMe } from '../../utils/auth.js'
+import { getToken } from '../../utils/request.js'
 
 const showEditProfile = ref(false)
 const editNickname = ref('')
@@ -165,7 +165,23 @@ const funcList = [
 ]
 
 onMounted(async () => {
-  await getLoginReady()
+  // 未登录：mine 不允许进入，直接跳登录页
+  const token = getToken()
+  if (!token) {
+    uni.navigateTo({
+      url: '/pages/login/index?redirect=' + encodeURIComponent('/pages/mine/index')
+    })
+    return
+  }
+
+  // 已有 token：尽量确保用户态可用（避免依赖 App.vue 的执行时序）
+  if (!userState.user) {
+    try {
+      await fetchMe()
+    } catch (e) {
+      // request.js 在 401 refresh 失败时会导航登录页；这里吞掉即可
+    }
+  }
 })
 
 function onEditAvatar() {

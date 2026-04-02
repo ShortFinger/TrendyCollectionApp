@@ -1,3 +1,5 @@
+import { clearUser } from '../store/user.js'
+
 // 多服务 base URL 配置
 const API_BASE = {
   user: 'http://localhost:8083/user-api',
@@ -8,6 +10,7 @@ const DEFAULT_BASE = API_BASE.user
 
 let isRefreshing = false
 let pendingRequests = []
+let hasNavigatedToLogin = false
 
 function getToken() {
   return uni.getStorageSync('accessToken') || ''
@@ -69,53 +72,42 @@ export function request(options) {
       header,
       success: async (res) => {
         if (res.statusCode === 401) {
+          pendingRequests.push((newToken, err) => {
+            if (err) return reject(err)
+            header['Authorization'] = `Bearer ${newToken}`
+            uni.request({
+              url: fullUrl, method: options.method || 'GET', data: options.data, header,
+              success: (retryRes) => {
+                if (retryRes.data.code === 0) resolve(retryRes.data.data)
+                else reject(retryRes.data)
+              },
+              fail: reject
+            })
+          })
+
           if (!isRefreshing) {
             isRefreshing = true
             try {
               const newToken = await refreshToken()
               isRefreshing = false
               retryPending(newToken)
-              header['Authorization'] = `Bearer ${newToken}`
-              uni.request({
-                url: fullUrl, method: options.method || 'GET', data: options.data, header,
-                success: (retryRes) => {
-                  if (retryRes.data.code === 0) resolve(retryRes.data.data)
-                  else reject(retryRes.data)
-                },
-                fail: reject
-              })
             } catch (err) {
               isRefreshing = false
               rejectPending(err)
               clearTokens()
-              const { login } = require('./auth.js')
-              try {
-                await login()
-                const retryToken = getToken()
-                header['Authorization'] = `Bearer ${retryToken}`
-                uni.request({
-                  url: fullUrl, method: options.method || 'GET', data: options.data, header,
-                  success: (retryRes) => {
-                    if (retryRes.data.code === 0) resolve(retryRes.data.data)
-                    else reject(retryRes.data)
-                  },
-                  fail: reject
+              clearUser()
+
+              // 避免并发 401 导致多次跳转登录页
+              if (!hasNavigatedToLogin) {
+                hasNavigatedToLogin = true
+                uni.navigateTo({
+                  url: '/pages/login/index?redirect=' + encodeURIComponent('/pages/mine/index')
                 })
-              } catch (loginErr) { reject(loginErr) }
+                setTimeout(() => {
+                  hasNavigatedToLogin = false
+                }, 5000)
+              }
             }
-          } else {
-            pendingRequests.push((newToken, err) => {
-              if (err) return reject(err)
-              header['Authorization'] = `Bearer ${newToken}`
-              uni.request({
-                url: fullUrl, method: options.method || 'GET', data: options.data, header,
-                success: (retryRes) => {
-                  if (retryRes.data.code === 0) resolve(retryRes.data.data)
-                  else reject(retryRes.data)
-                },
-                fail: reject
-              })
-            })
           }
         } else if (res.data.code === 0) {
           resolve(res.data.data)

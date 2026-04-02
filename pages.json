@@ -13,6 +13,12 @@
       }
     },
     {
+      "path": "pages/login/index",
+      "style": {
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
       "path": "pages/coupon/index",
       "style": {
         "navigationBarTitleText": "优惠券中心"
