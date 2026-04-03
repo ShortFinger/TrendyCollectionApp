@@ -1,89 +1,43 @@
 <template>
-  <view class="category-page">
-    <!-- 顶部搜索框 -->
-    <view class="category-search-wrapper">
-      <view class="category-search-box">
-        <text class="category-search-placeholder">搜索生鲜商品...</text>
+  <view class="cat-page">
+    <view class="cat-status-bar" :style="{ height: statusBarPx + 'px' }" />
+
+    <view class="cat-header">
+      <view class="cat-header-inner">
+        <CategorySearchBar />
       </view>
+      <view class="cat-header-divider" />
     </view>
 
-    <view class="category-content">
-      <!-- 左侧分类列表 -->
-      <scroll-view class="category-left" scroll-y>
-        <view
-          v-for="item in categoryList"
-          :key="item.key"
-          class="category-left-item"
-          :class="{ 'category-left-item-active': item.key === activeCategory }"
-          @click="activeCategory = item.key"
-        >
-          <text class="category-left-text">{{ item.label }}</text>
-        </view>
-      </scroll-view>
+    <view class="cat-main">
+      <view class="cat-col-left">
+        <CategorySidebar
+          :items="categoryList"
+          :active-key="activeCategory"
+          @update:active-key="setActiveCategory"
+        />
+      </view>
 
-      <!-- 右侧内容区域 -->
-      <scroll-view class="category-right" scroll-y>
-        <!-- 热门搜索 -->
-        <view class="hot-search-section">
-          <view class="section-title-row">
-            <text class="section-title">热门搜索</text>
-          </view>
-          <view class="tag-row">
-            <view
-              v-for="tag in hotTags"
-              :key="tag"
-              class="tag-item"
-            >
-              <text class="tag-text">{{ tag }}</text>
-            </view>
-          </view>
-        </view>
-
-        <!-- 热销单品 -->
-        <view class="hot-products-section">
-          <view class="section-title-row">
-            <text class="section-title">热销单品</text>
-          </view>
-
-          <view class="product-grid">
-            <view
-              v-for="item in hotProducts"
-              :key="item.id"
-              class="product-card"
-            >
-              <view class="product-image">
-                <text class="product-image-text">Product {{ item.id }}</text>
-              </view>
-
-              <view class="product-info">
-                <text class="product-name-cn">
-                  {{ item.name }}
-                </text>
-                <text class="product-desc">
-                  {{ item.desc }}
-                </text>
-
-                <text class="product-price">
-                  ¥{{ item.price }}
-                </text>
-              </view>
-            </view>
-          </view>
-        </view>
-
-        <!-- 底部预留，避免被 TabBar 遮挡 -->
-        <view class="bottom-safe" />
+      <scroll-view class="cat-col-right" scroll-y :show-scrollbar="false">
+        <CategoryHotSearch :tags="hotTags" />
+        <CategoryProductGrid :products="hotProducts" />
+        <view class="cat-bottom-safe" />
       </scroll-view>
     </view>
 
-    <!-- 底部 TabBar 公共组件，高亮“分类” -->
     <TabBar active="category" />
   </view>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import CategorySearchBar from '@/components/category/CategorySearchBar.vue'
+import CategorySidebar from '@/components/category/CategorySidebar.vue'
+import CategoryHotSearch from '@/components/category/CategoryHotSearch.vue'
+import CategoryProductGrid from '@/components/category/CategoryProductGrid.vue'
 import TabBar from '@/components/TabBar.vue'
+
+const statusBarPx = uni.getSystemInfoSync().statusBarHeight || 0
 
 const categoryList = [
   { key: 'today', label: '今日推荐' },
@@ -99,179 +53,74 @@ const categoryList = [
 const hotTags = ['波士顿龙虾', '红颜草莓', '有机西红柿']
 
 const hotProducts = [
-  {
-    id: 1,
-    name: 'Product 1',
-    desc: '泰国金枕头榴莲A级 2-3kg',
-    price: '199.0'
-  },
-  {
-    id: 2,
-    name: 'Product 2',
-    desc: '澳洲冷鲜西冷牛排 200g',
-    price: '58.0'
-  }
+  { id: 1, title: '泰国金枕头榴莲A级 2-3kg', price: '199.0' },
+  { id: 2, title: '澳洲冷鲜西冷牛排 200g', price: '58.0' }
 ]
 
 const activeCategory = ref('today')
+
+function setActiveCategory(key) {
+  activeCategory.value = key
+}
 </script>
 
 <style lang="scss">
-.category-page {
-  background-color: #f7f8fa;
+.cat-page {
   min-height: 100vh;
-  padding-bottom: 120rpx;
-}
-
-.category-search-wrapper {
-  padding: 24rpx 32rpx 8rpx;
-}
-
-.category-search-box {
-  height: 64rpx;
-  border-radius: 32rpx;
-  background-color: #f3f5f7;
-  padding: 0 24rpx;
+  background-color: #f7f8fa;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 
-.category-search-placeholder {
-  font-size: 24rpx;
-  color: #999999;
+.cat-status-bar {
+  width: 100%;
+  flex-shrink: 0;
 }
 
-.category-content {
-  display: flex;
-  height: calc(100vh - 64rpx - 120rpx);
-  padding: 0 0 0 24rpx;
+.cat-header {
+  flex-shrink: 0;
+  background-color: #f7f8fa;
+}
+
+.cat-header-inner {
+  padding: 8rpx 32rpx 16rpx;
   box-sizing: border-box;
 }
 
-.category-left {
-  width: 168rpx;
-  background-color: #f7f8fa;
+.cat-header-divider {
+  height: 1rpx;
+  background-color: #e8e8e8;
+  margin: 0 32rpx;
 }
 
-.category-left-item {
-  height: 96rpx;
-  padding-left: 24rpx;
-  display: flex;
-  align-items: center;
-  border-radius: 0 32rpx 32rpx 0;
-  color: #555555;
-  font-size: 24rpx;
-}
-
-.category-left-item-active {
-  background-color: #ffffff;
-  color: #02b282;
-  font-weight: 600;
-  border-left-width: 6rpx;
-  border-left-style: solid;
-  border-left-color: #02b282;
-}
-
-.category-left-text {
-  line-height: 1;
-}
-
-.category-right {
+.cat-main {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  padding-left: 24rpx;
+  box-sizing: border-box;
+}
+
+.cat-col-left {
+  width: 25%;
+  min-width: 0;
+  height: 100%;
+}
+
+.cat-col-right {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
   background-color: #ffffff;
   border-top-left-radius: 24rpx;
   padding: 16rpx 24rpx 24rpx;
   box-sizing: border-box;
 }
 
-.hot-search-section {
-  margin-bottom: 32rpx;
-}
-
-.section-title-row {
-  margin-bottom: 16rpx;
-}
-
-.section-title {
-  font-size: 26rpx;
-  color: #333333;
-  font-weight: 600;
-}
-
-.tag-row {
-  flex-direction: row;
-  flex-wrap: wrap;
-  display: flex;
-  gap: 16rpx;
-}
-
-.tag-item {
-  padding: 8rpx 20rpx;
-  border-radius: 32rpx;
-  background-color: #f5f7fb;
-}
-
-.tag-text {
-  font-size: 22rpx;
-  color: #666666;
-}
-
-.hot-products-section {
-  margin-top: 8rpx;
-}
-
-.product-grid {
-  margin-top: 16rpx;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-}
-
-.product-card {
-  width: 48%;
-  margin-bottom: 24rpx;
-  border-radius: 16rpx;
-  background-color: #f7f8fa;
-  overflow: hidden;
-}
-
-.product-image {
-  width: 100%;
-  height: 180rpx;
-  background-color: #e8eaee;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.product-image-text {
-  font-size: 22rpx;
-  color: #aaaaaa;
-}
-
-.product-info {
-  padding: 16rpx 16rpx 20rpx;
-}
-
-.product-name-cn {
-  font-size: 22rpx;
-  color: #999999;
-}
-
-.product-desc {
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: #333333;
-}
-
-.product-price {
-  margin-top: 12rpx;
-  font-size: 26rpx;
-  color: #ff4d4f;
-}
-
-.bottom-safe {
+.cat-bottom-safe {
   height: 140rpx;
 }
 </style>
-
