@@ -32,7 +32,7 @@ const props = defineProps({
 
 const tabList = [
   { key: 'home', label: '首页', icon: '🏠' },
-  { key: 'category', label: '分类', icon: '📂' },
+  { key: 'category', label: '分类', icon: '▦' },
   { key: 'cart', label: '赏柜', icon: '🛒' },
   { key: 'mine', label: '我的', icon: '👤' }
 ]
