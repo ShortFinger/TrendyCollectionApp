@@ -4,7 +4,8 @@ import { clearUser } from '../store/user.js'
 const API_BASE = {
   user: 'http://localhost:8083/user-api',
   order: 'http://localhost:8081/client-api',
-  app: 'http://localhost:8080/app-api'
+  // TrendyCollectionAppConfig（dev 默认 8085，与 Admin 8080 错开）
+  app: 'http://localhost:8085/app-api'
 }
 const DEFAULT_BASE = API_BASE.user
 
