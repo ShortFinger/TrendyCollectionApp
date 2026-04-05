@@ -215,6 +215,35 @@
       }
     }
 
+    const slotProcessors = {
+      search_bar: processSearchBar,
+      banner: processBanner,
+      icon_grid: processIconGrid,
+      activity_card_grid: processActivityCards
+    }
+
+    const processSlots = async (slots) => {
+      for (const slot of slots) {
+        const processor = slotProcessors[slot.slotType]
+        if (processor) await processor(slot)
+      }
+    }
+
+    const fetchHomePage = async () => {
+      const now = Date.now()
+      if (pageCache.data && (now - pageCache.timestamp < CACHE_TTL)) {
+        return pageCache.data
+      }
+      const data = await request({
+        url: '/v1/pages/home/page',
+        base: API_BASE.app,
+        method: 'GET',
+        data: { channel: 'mp-weixin', appVersion: '1.0.0' }
+      })
+      pageCache = { data, timestamp: Date.now() }
+      return data
+    }
+
     const requestData = (url, data = {}) =>
       new Promise((resolve, reject) => {
         uni.request({
@@ -345,17 +374,12 @@
 
     const loadHomeData = async () => {
       try {
-        await Promise.all([
-          fetchHomeBase(),
-          fetchBanner(),
-          fetchCategory(),
-          fetchActivityCardsFromCms()
-        ])
+        const page = await fetchHomePage()
+        if (page?.slots) {
+          await processSlots(page.slots)
+        }
       } catch (error) {
-        uni.showToast({
-          title: '首页数据加载失败',
-          icon: 'none'
-        })
+        uni.showToast({ title: '首页数据加载失败', icon: 'none' })
       }
     }
 
