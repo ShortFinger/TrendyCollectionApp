@@ -150,6 +150,71 @@
       catch { return null }
     }
 
+    const processSearchBar = (slot) => {
+      const item = slot.items?.[0]
+      if (!item) return
+      const data = parsePayload(item)
+      if (data?.placeholder) {
+        searchPlaceholder.value = data.placeholder
+      }
+    }
+
+    const processBanner = (slot) => {
+      const item = slot.items?.[0]
+      if (!item) return
+      const data = parsePayload(item)
+      if (data) {
+        bannerData.value = { ...bannerData.value, ...data }
+      }
+    }
+
+    const processIconGrid = (slot) => {
+      if (!slot.items?.length) return
+      const sorted = [...slot.items].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      )
+      const items = []
+      for (const item of sorted) {
+        const data = parsePayload(item)
+        if (data) {
+          items.push({
+            id: item.id,
+            label: data.label || '',
+            icon: data.icon || '',
+            bgColor: data.bgColor || '#f5f5f5',
+            link: data.link || ''
+          })
+        }
+      }
+      if (items.length) {
+        iconList.value = items
+      }
+    }
+
+    const processActivityCards = async (slot) => {
+      try {
+        const ids = collectActivityIdsFromSlots([slot])
+        if (!ids.length) {
+          cards.value = []
+          return
+        }
+        const activities = await request({
+          url: '/activities/display-batch',
+          base: API_BASE.order,
+          method: 'POST',
+          data: { ids }
+        })
+        const merged = mergeActivityCardItems([slot], activities)
+        cards.value = merged
+        if (!merged.length) {
+          uni.showToast({ title: '暂无可展示活动', icon: 'none' })
+        }
+      } catch (e) {
+        uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
+        cards.value = []
+      }
+    }
+
     const requestData = (url, data = {}) =>
       new Promise((resolve, reject) => {
         uni.request({
