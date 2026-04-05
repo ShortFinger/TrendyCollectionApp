@@ -55,6 +55,10 @@
             <view class="card-title">
               <text>{{ item.title }}</text>
             </view>
+
+            <view v-if="item.priceText" class="card-price-row">
+              <text class="card-price">{{ item.priceText }}</text>
+            </view>
   
             <view class="card-content">
               <view class="card-desc">
@@ -81,6 +85,15 @@
     <script setup>
     import { onMounted, ref } from 'vue'
     import TabBar from '@/components/TabBar.vue'
+    import { request, API_BASE } from '@/utils/request.js'
+    import {
+      collectActivityIdsFromSlots,
+      mergeActivityCardItems
+    } from '@/utils/mergeActivityCards.js'
+
+    // --- CMS page cache (module-level, resets on cold start) ---
+    let pageCache = { data: null, timestamp: 0 }
+    const CACHE_TTL = 3 * 60 * 1000 // 3 minutes
 
     const searchPlaceholder = ref('新鲜草莓 1.9元/斤')
     const bannerData = ref({
@@ -132,6 +145,11 @@
       }
     ])
 
+    const parsePayload = (item) => {
+      try { return JSON.parse(item.payload) }
+      catch { return null }
+    }
+
     const requestData = (url, data = {}) =>
       new Promise((resolve, reject) => {
         uni.request({
@@ -145,6 +163,25 @@
               return
             }
             reject(new Error(body.message || '请求失败'))
+          },
+          fail: reject
+        })
+      })
+
+    const postJson = (url, body) =>
+      new Promise((resolve, reject) => {
+        uni.request({
+          url,
+          method: 'POST',
+          data: body,
+          header: { 'Content-Type': 'application/json' },
+          success: (res) => {
+            const b = res.data || {}
+            if (b.code === 0) {
+              resolve(b.data)
+              return
+            }
+            reject(new Error(b.message || '请求失败'))
           },
           fail: reject
         })
@@ -204,13 +241,51 @@
     const fetchContentCards = async () => {
       const data = await requestData('/app/content-cards', { page: 1, pageSize: 10 })
       if (Array.isArray(data?.items) && data.items.length > 0) {
-        cards.value = data.items
+        cards.value = data.items.map((row) => ({
+          ...row,
+          priceText: row.priceText || ''
+        }))
+      }
+    }
+
+    /** CMS activity_card_ref + Order display-batch；无配置时回退 content-cards */
+    const fetchActivityCardsFromCms = async () => {
+      try {
+        const page = await requestData(`${API_BASE.app}/v1/pages/home/page`, {
+          channel: 'mp-weixin',
+          appVersion: '1.0.0'
+        })
+        const ids = collectActivityIdsFromSlots(page?.slots)
+        if (!ids.length) {
+          await fetchContentCards()
+          return
+        }
+        const activities = await postJson(`${API_BASE.order}/activities/display-batch`, { ids })
+        const merged = mergeActivityCardItems(page.slots, activities)
+        cards.value = merged
+        if (!merged.length) {
+          uni.showToast({
+            title: '暂无可展示活动',
+            icon: 'none'
+          })
+        }
+      } catch (e) {
+        uni.showToast({
+          title: '活动卡片加载失败',
+          icon: 'none'
+        })
+        cards.value = []
       }
     }
 
     const loadHomeData = async () => {
       try {
-        await Promise.all([fetchHomeBase(), fetchBanner(), fetchCategory(), fetchContentCards()])
+        await Promise.all([
+          fetchHomeBase(),
+          fetchBanner(),
+          fetchCategory(),
+          fetchActivityCardsFromCms()
+        ])
       } catch (error) {
         uni.showToast({
           title: '首页数据加载失败',
@@ -219,13 +294,9 @@
       }
     }
 
-    const handleCardClick = (index, item) => {
+    const handleCardClick = (_index, item) => {
       if (item?.jumpUrl) {
         handleJump(item.jumpType || 'page', item.jumpUrl)
-        return
-      }
-      if (index === 0) {
-        uni.navigateTo({ url: '/pages/ichibanKuji/index' })
       }
     }
 
@@ -497,6 +568,16 @@
       font-size: 26rpx;
       font-weight: 600;
       color: #333;
+    }
+
+    .card-price-row {
+      padding: 8rpx 20rpx 0;
+    }
+
+    .card-price {
+      font-size: 28rpx;
+      font-weight: 600;
+      color: #ff4d4f;
     }
 
     .card-content {
