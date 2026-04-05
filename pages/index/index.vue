@@ -114,7 +114,6 @@
       { id: 5, label: '乳品烘焙', icon: '🥛', bgColor: '#fef3e3' },
     ])
     
-    // 卡片区域数据（来自 index.vue）
     const cards = ref([
       {
         id: 1,
@@ -150,42 +149,99 @@
       catch { return null }
     }
 
-    const requestData = (url, data = {}) =>
-      new Promise((resolve, reject) => {
-        uni.request({
-          url,
-          method: 'GET',
-          data,
-          success: (res) => {
-            const body = res.data || {}
-            if (body.code === 0) {
-              resolve(body.data)
-              return
-            }
-            reject(new Error(body.message || '请求失败'))
-          },
-          fail: reject
-        })
-      })
+    const processSearchBar = (slot) => {
+      const item = slot.items?.[0]
+      if (!item) return
+      const data = parsePayload(item)
+      if (data?.placeholder) {
+        searchPlaceholder.value = data.placeholder
+      }
+    }
 
-    const postJson = (url, body) =>
-      new Promise((resolve, reject) => {
-        uni.request({
-          url,
+    const processBanner = (slot) => {
+      const item = slot.items?.[0]
+      if (!item) return
+      const data = parsePayload(item)
+      if (data) {
+        bannerData.value = { ...bannerData.value, ...data }
+      }
+    }
+
+    const processIconGrid = (slot) => {
+      if (!slot.items?.length) return
+      const sorted = [...slot.items].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+      )
+      const items = []
+      for (const item of sorted) {
+        const data = parsePayload(item)
+        if (data) {
+          items.push({
+            id: item.id,
+            label: data.label || '',
+            icon: data.icon || '',
+            bgColor: data.bgColor || '#f5f5f5',
+            link: data.link || ''
+          })
+        }
+      }
+      if (items.length) {
+        iconList.value = items
+      }
+    }
+
+    const processActivityCards = async (slot) => {
+      try {
+        const ids = collectActivityIdsFromSlots([slot])
+        if (!ids.length) {
+          cards.value = []
+          return
+        }
+        const activities = await request({
+          url: '/activities/display-batch',
+          base: API_BASE.order,
           method: 'POST',
-          data: body,
-          header: { 'Content-Type': 'application/json' },
-          success: (res) => {
-            const b = res.data || {}
-            if (b.code === 0) {
-              resolve(b.data)
-              return
-            }
-            reject(new Error(b.message || '请求失败'))
-          },
-          fail: reject
+          data: { ids }
         })
+        const merged = mergeActivityCardItems([slot], activities)
+        cards.value = merged
+        if (!merged.length) {
+          uni.showToast({ title: '暂无可展示活动', icon: 'none' })
+        }
+      } catch (e) {
+        uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
+        cards.value = []
+      }
+    }
+
+    const slotProcessors = {
+      search_bar: processSearchBar,
+      banner: processBanner,
+      icon_grid: processIconGrid,
+      activity_card_grid: processActivityCards
+    }
+
+    const processSlots = async (slots) => {
+      for (const slot of slots) {
+        const processor = slotProcessors[slot.slotType]
+        if (processor) await processor(slot)
+      }
+    }
+
+    const fetchHomePage = async () => {
+      const now = Date.now()
+      if (pageCache.data && (now - pageCache.timestamp < CACHE_TTL)) {
+        return pageCache.data
+      }
+      const data = await request({
+        url: '/v1/pages/home/page',
+        base: API_BASE.app,
+        method: 'GET',
+        data: { channel: 'mp-weixin', appVersion: '1.0.0' }
       })
+      pageCache = { data, timestamp: Date.now() }
+      return data
+    }
 
     const formatLikes = (likes) => {
       const value = Number(likes) || 0
@@ -216,81 +272,14 @@
       uni.navigateTo({ url: item.link })
     }
 
-    const fetchHomeBase = async () => {
-      const data = await requestData('/app')
-      const placeholder = data?.header?.search?.placeholder
-      if (placeholder) {
-        searchPlaceholder.value = placeholder
-      }
-    }
-
-    const fetchBanner = async () => {
-      const data = await requestData('/app/banner')
-      if (Array.isArray(data) && data.length > 0) {
-        bannerData.value = { ...bannerData.value, ...data[0] }
-      }
-    }
-
-    const fetchCategory = async () => {
-      const data = await requestData('/app/category')
-      if (Array.isArray(data?.items) && data.items.length > 0) {
-        iconList.value = data.items
-      }
-    }
-
-    const fetchContentCards = async () => {
-      const data = await requestData('/app/content-cards', { page: 1, pageSize: 10 })
-      if (Array.isArray(data?.items) && data.items.length > 0) {
-        cards.value = data.items.map((row) => ({
-          ...row,
-          priceText: row.priceText || ''
-        }))
-      }
-    }
-
-    /** CMS activity_card_ref + Order display-batch；无配置时回退 content-cards */
-    const fetchActivityCardsFromCms = async () => {
-      try {
-        const page = await requestData(`${API_BASE.app}/v1/pages/home/page`, {
-          channel: 'mp-weixin',
-          appVersion: '1.0.0'
-        })
-        const ids = collectActivityIdsFromSlots(page?.slots)
-        if (!ids.length) {
-          await fetchContentCards()
-          return
-        }
-        const activities = await postJson(`${API_BASE.order}/activities/display-batch`, { ids })
-        const merged = mergeActivityCardItems(page.slots, activities)
-        cards.value = merged
-        if (!merged.length) {
-          uni.showToast({
-            title: '暂无可展示活动',
-            icon: 'none'
-          })
-        }
-      } catch (e) {
-        uni.showToast({
-          title: '活动卡片加载失败',
-          icon: 'none'
-        })
-        cards.value = []
-      }
-    }
-
     const loadHomeData = async () => {
       try {
-        await Promise.all([
-          fetchHomeBase(),
-          fetchBanner(),
-          fetchCategory(),
-          fetchActivityCardsFromCms()
-        ])
+        const page = await fetchHomePage()
+        if (page?.slots) {
+          await processSlots(page.slots)
+        }
       } catch (error) {
-        uni.showToast({
-          title: '首页数据加载失败',
-          icon: 'none'
-        })
+        uni.showToast({ title: '首页数据加载失败', icon: 'none' })
       }
     }
 
