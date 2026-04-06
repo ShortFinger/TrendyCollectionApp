@@ -3,7 +3,7 @@ import { clearUser } from '../store/user.js'
 // 多服务 base URL 配置
 const API_BASE = {
   user: 'http://localhost:8083/user-api',
-  order: 'http://localhost:8081/client-api',
+  order: 'http://localhost:8084/client-api',
   // TrendyCollectionAppConfig（dev 默认 8085，与 Admin 8080 错开）
   app: 'http://localhost:8085/app-api'
 }
