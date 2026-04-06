@@ -1,14 +1,14 @@
 <template>
     <view class="home-page">
-      <!-- 顶部搜索行 -->
-      <view class="top-bar">
-        <view class="search-box">
-          <text class="search-placeholder">{{ searchPlaceholder }}</text>
+      <PageSearchHeader>
+        <view class="home-top-row">
+          <view class="home-search-wrap">
+            <SearchBar :placeholder="searchPlaceholder" />
+          </view>
+          <view class="home-bell">🔔</view>
         </view>
-  
-        <view class="bell-icon">🔔</view>
-      </view>
-  
+      </PageSearchHeader>
+
       <scroll-view class="scroll" scroll-y>
         <!-- 大 Banner -->
         <view class="banner" :style="{ backgroundColor: bannerData.bgColor || '#00c36f' }" @click="handleBannerClick">
@@ -85,6 +85,8 @@
     <script setup>
     import { onMounted, ref } from 'vue'
     import TabBar from '@/components/TabBar.vue'
+    import PageSearchHeader from '@/components/PageSearchHeader.vue'
+    import SearchBar from '@/components/SearchBar.vue'
     import { request, API_BASE } from '@/utils/request.js'
     import {
       collectActivityIdsFromSlots,
@@ -298,42 +300,36 @@
     .home-page {
       background-color: #f7f8fa;
       min-height: 100vh;
-      padding-bottom: 120rpx;
-    }
-    
-    .top-bar {
-      padding: 0 32rpx;
-      margin-top: 16rpx;
       display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
+    }
+
+    .home-top-row {
+      display: flex;
+      flex-direction: row;
       align-items: center;
     }
-    
-    .search-box {
-      flex: 1.2;
-      margin: 0 16rpx;
-      height: 60rpx;
-      border-radius: 60rpx;
-      background-color: #f3f5f7;
-      display: flex;
-      align-items: center;
-      padding: 0 24rpx;
+
+    .home-search-wrap {
+      flex: 1;
+      min-width: 0;
     }
-    
-    .search-placeholder {
-      font-size: 24rpx;
-      color: #999;
-    }
-    
-    .bell-icon {
+
+    .home-bell {
       width: 52rpx;
+      margin-left: 16rpx;
       text-align: right;
+      flex-shrink: 0;
     }
-    
+
     .scroll {
+      flex: 1;
+      min-height: 0;
       margin-top: 24rpx;
       padding: 0 24rpx 24rpx;
       box-sizing: border-box;
-      height: calc(100vh - 44px - 120rpx);
     }
     
     /* Banner */
