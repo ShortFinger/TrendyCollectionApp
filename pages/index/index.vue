@@ -148,6 +148,8 @@
     } from '@/utils/cmsSlotContentTypes.js'
     import { normalizeCmsPayloadAsObject } from '@/utils/cmsContentPayload.js'
 
+    const CMS_PAGE_KEY = 'home'
+
     // --- CMS page cache (module-level, resets on cold start) ---
     let pageCache = { data: null, timestamp: 0 }
     const CACHE_TTL = 3 * 60 * 1000 // 3 minutes
@@ -185,7 +187,11 @@
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
-      const data = normalizeCmsPayloadAsObject(item.payload)
+      const data = normalizeCmsPayloadAsObject(item.payload, {
+        pageCode: CMS_PAGE_KEY,
+        slotType: slot.slotType,
+        contentType: CONTENT_TYPE_SEARCH_BAR
+      })
       if (data?.placeholder) {
         searchPlaceholder.value = data.placeholder
       }
@@ -194,7 +200,11 @@
     const processBanner = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
-      const data = normalizeCmsPayloadAsObject(item.payload)
+      const data = normalizeCmsPayloadAsObject(item.payload, {
+        pageCode: CMS_PAGE_KEY,
+        slotType: slot.slotType,
+        contentType: CONTENT_TYPE_BANNER_SLIDE
+      })
       if (data) {
         bannerData.value = {
           ...emptyBanner(),
@@ -210,7 +220,11 @@
       if (!sorted.length) return
       const items = []
       for (const item of sorted) {
-        const data = normalizeCmsPayloadAsObject(item.payload)
+        const data = normalizeCmsPayloadAsObject(item.payload, {
+          pageCode: CMS_PAGE_KEY,
+          slotType: slot.slotType,
+          contentType: CONTENT_TYPE_ICON_ENTRY
+        })
         if (data) {
           items.push({
             id: item.id,

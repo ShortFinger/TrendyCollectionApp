@@ -11,6 +11,17 @@ import { normalizeCmsPayload } from './cmsContentPayload.js'
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
 
+/** 首页 CMS 页 key；若其它页复用此工具可改为入参 */
+const CMS_PAGE_CODE = 'home'
+
+function activityItemPayloadMeta(it) {
+  return {
+    pageCode: CMS_PAGE_CODE,
+    contentType: it.contentType,
+    slotType: SLOT_TYPE
+  }
+}
+
 /**
  * @param {Record<string, { items?: Array<{ contentType?: string }> }> | null | undefined} slots
  */
@@ -53,7 +64,7 @@ export function collectActivityIdsFromSlots(slots) {
   )
   for (const it of sorted) {
     if (it.contentType !== CONTENT_TYPE) continue
-    const payload = normalizeCmsPayload(it.payload)
+    const payload = normalizeCmsPayload(it.payload, activityItemPayloadMeta(it))
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
     const aid = pickString(payload.activityId)
     if (aid && !seen.has(aid)) {
@@ -109,7 +120,7 @@ export function mergeActivityCardItems(slots, activities) {
 
   for (const it of sorted) {
     if (it.contentType !== CONTENT_TYPE) continue
-    const payload = normalizeCmsPayload(it.payload)
+    const payload = normalizeCmsPayload(it.payload, activityItemPayloadMeta(it))
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
     const activityId = pickString(payload.activityId)
     if (!activityId) continue
