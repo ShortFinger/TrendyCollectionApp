@@ -146,7 +146,6 @@
       filterItemsWithContentType,
       firstItemWithContentType,
     } from '@/utils/cmsSlotContentTypes.js'
-    import { normalizeCmsPayloadAsObject } from '@/utils/cmsContentPayload.js'
 
     const CMS_PAGE_KEY = 'home'
 
@@ -168,6 +167,8 @@
     const bannerData = ref(emptyBanner())
     const iconList = ref([])
     const cards = ref([])
+    const payloadErrorDedupKeys = new Set()
+    const payloadReportTraceCtx = ref({ requestId: '', traceId: '' })
 
     const resetHomeSections = () => {
       searchPlaceholder.value = '搜索'
@@ -184,34 +185,71 @@
       return Boolean(jt && jt !== 'none' && ju)
     })
 
+    const isRenderablePayload = (payload) => {
+      return payload != null && (Array.isArray(payload) || Object.prototype.toString.call(payload) === '[object Object]')
+    }
+
+    const reportPayloadError = (ctx = {}, payload) => {
+      const payloadType = payload === null ? 'null' : Array.isArray(payload) ? 'array' : typeof payload
+      const dedupKey = [ctx.pageCode || CMS_PAGE_KEY, ctx.slotType || '', ctx.contentType || '', payloadType].join('|')
+      if (payloadErrorDedupKeys.has(dedupKey)) return
+      payloadErrorDedupKeys.add(dedupKey)
+      console.warn('[appconfig] invalid CMS payload', {
+        pageCode: ctx.pageCode || CMS_PAGE_KEY,
+        slotType: ctx.slotType || '',
+        contentType: ctx.contentType || '',
+        payloadType,
+        requestId: ctx.requestId || '',
+        traceId: ctx.traceId || '',
+        appVersion: '1.0.0'
+      })
+    }
+
+    const normalizePayloadForRender = (item, ctx = {}) => {
+      const payload = item?.payload
+      if (isRenderablePayload(payload)) {
+        return payload
+      }
+      reportPayloadError(ctx, payload)
+      return null
+    }
+
+    const devAssertNormalizePayload = () => {
+      const okObj = normalizePayloadForRender({ payload: { a: 1 } })
+      const okArr = normalizePayloadForRender({ payload: [{ a: 1 }] })
+      const badType = isRenderablePayload('{"a":1}')
+      if (!okObj || !okArr || badType !== false) {
+        throw new Error('normalizePayloadForRender contract failed')
+      }
+    }
+
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
-      const data = normalizeCmsPayloadAsObject(item.payload, {
+      const data = normalizePayloadForRender(item, {
+        ...payloadReportTraceCtx.value,
         pageCode: CMS_PAGE_KEY,
         slotType: slot.slotType,
         contentType: CONTENT_TYPE_SEARCH_BAR
       })
-      if (data?.placeholder) {
-        searchPlaceholder.value = data.placeholder
-      }
+      if (data?.placeholder) searchPlaceholder.value = data.placeholder
     }
 
     const processBanner = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
-      const data = normalizeCmsPayloadAsObject(item.payload, {
+      const data = normalizePayloadForRender(item, {
+        ...payloadReportTraceCtx.value,
         pageCode: CMS_PAGE_KEY,
         slotType: slot.slotType,
         contentType: CONTENT_TYPE_BANNER_SLIDE
       })
-      if (data) {
-        bannerData.value = {
-          ...emptyBanner(),
-          ...data,
-          jumpType: data.jumpType || 'none',
-          jumpUrl: data.jumpUrl || ''
-        }
+      if (!data) return
+      bannerData.value = {
+        ...emptyBanner(),
+        ...data,
+        jumpType: data.jumpType || 'none',
+        jumpUrl: data.jumpUrl || ''
       }
     }
 
@@ -220,20 +258,20 @@
       if (!sorted.length) return
       const items = []
       for (const item of sorted) {
-        const data = normalizeCmsPayloadAsObject(item.payload, {
+        const data = normalizePayloadForRender(item, {
+          ...payloadReportTraceCtx.value,
           pageCode: CMS_PAGE_KEY,
           slotType: slot.slotType,
           contentType: CONTENT_TYPE_ICON_ENTRY
         })
-        if (data) {
-          items.push({
-            id: item.id,
-            label: data.label || '',
-            icon: data.icon || '',
-            bgColor: data.bgColor || '#f5f5f5',
-            link: data.link || ''
-          })
-        }
+        if (!data) continue
+        items.push({
+          id: item.id,
+          label: data.label || '',
+          icon: data.icon || '',
+          bgColor: data.bgColor || '#f5f5f5',
+          link: data.link || ''
+        })
       }
       if (items.length) {
         iconList.value = items
@@ -343,7 +381,13 @@
     const loadHomeData = async () => {
       try {
         resetHomeSections()
+        payloadErrorDedupKeys.clear()
+        payloadReportTraceCtx.value = { requestId: '', traceId: '' }
         const page = await fetchHomePage()
+        payloadReportTraceCtx.value = {
+          requestId: (page?.requestId ?? page?.reqId ?? page?.requestID ?? '').toString().trim(),
+          traceId: (page?.traceId ?? page?.traceID ?? '').toString().trim()
+        }
         if (page?.slots) {
           await processSlots(page.slots)
         }
@@ -356,6 +400,10 @@
       if (item?.jumpUrl) {
         handleJump(item.jumpType || 'page', item.jumpUrl)
       }
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+      devAssertNormalizePayload()
     }
 
     onMounted(() => {

@@ -6,21 +6,9 @@ import {
   CONTENT_TYPE_ACTIVITY_CARD_REF,
   SLOT_TYPE_ACTIVITY_CARD_GRID,
 } from './cmsSlotContentTypes.js'
-import { normalizeCmsPayload } from './cmsContentPayload.js'
 
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
-
-/** 首页 CMS 页 key；若其它页复用此工具可改为入参 */
-const CMS_PAGE_CODE = 'home'
-
-function activityItemPayloadMeta(it) {
-  return {
-    pageCode: CMS_PAGE_CODE,
-    contentType: it.contentType,
-    slotType: SLOT_TYPE
-  }
-}
 
 /**
  * @param {Record<string, { items?: Array<{ contentType?: string }> }> | null | undefined} slots
@@ -51,7 +39,7 @@ function pickString(v) {
 }
 
 /**
- * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots
+ * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
  * @returns {string[]}
  */
 export function collectActivityIdsFromSlots(slots) {
@@ -63,9 +51,11 @@ export function collectActivityIdsFromSlots(slots) {
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
   )
   for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE) continue
-    const payload = normalizeCmsPayload(it.payload, activityItemPayloadMeta(it))
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
+    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
+    const payload = it.payload
+    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
+      continue
+    }
     const aid = pickString(payload.activityId)
     if (aid && !seen.has(aid)) {
       seen.add(aid)
@@ -102,7 +92,7 @@ function formatMoneyPrice(price) {
 }
 
 /**
- * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
+ * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
  * @param {Array<{ id: string, status?: number, activityType?: number, title?: string, squareThumb?: string, longThumb?: string, images?: string, moneyPrice?: number|string, lowerLeftCornerMark?: string, upperLeftCornerMark?: string, upperRightCornerMark?: string, lowerRightCornerMark?: string, tags?: string }>} activities
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
  */
@@ -119,9 +109,11 @@ export function mergeActivityCardItems(slots, activities) {
   const out = []
 
   for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE) continue
-    const payload = normalizeCmsPayload(it.payload, activityItemPayloadMeta(it))
-    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
+    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
+    const payload = it.payload
+    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
+      continue
+    }
     const activityId = pickString(payload.activityId)
     if (!activityId) continue
     const act = map.get(activityId)
