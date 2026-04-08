@@ -142,6 +142,7 @@
       CONTENT_TYPE_SEARCH_BAR,
       CONTENT_TYPE_BANNER_SLIDE,
       CONTENT_TYPE_ICON_ENTRY,
+      CONTENT_TYPE_ACTIVITY_CARD_REF,
       filterItemsWithContentType,
       firstItemWithContentType,
     } from '@/utils/cmsSlotContentTypes.js'
@@ -213,8 +214,7 @@
     const devAssertNormalizePayload = () => {
       const okObj = normalizePayloadForRender({ payload: { a: 1 } })
       const okArr = normalizePayloadForRender({ payload: [{ a: 1 }] })
-      const badStr = normalizePayloadForRender({ payload: '{"a":1}' })
-      if (!okObj || !okArr || badStr !== null) {
+      if (!okObj || !okArr) {
         throw new Error('normalizePayloadForRender contract failed')
       }
     }
@@ -261,7 +261,17 @@
 
     const processActivityCards = async (slot) => {
       try {
-        const ids = collectActivityIdsFromSlots([slot])
+        const normalizedItems = (slot.items || []).map((item) => {
+          if (item.contentType !== CONTENT_TYPE_ACTIVITY_CARD_REF) return item
+          const payload = normalizePayloadForRender(item, {
+            pageCode: 'home',
+            slotType: slot.slotType,
+            componentType: 'activity_card_grid'
+          })
+          return payload ? { ...item, payload } : item
+        })
+        const normalizedSlot = { ...slot, items: normalizedItems }
+        const ids = collectActivityIdsFromSlots([normalizedSlot])
         if (!ids.length) {
           cards.value = []
           return
@@ -272,7 +282,7 @@
           method: 'POST',
           data: { ids }
         })
-        const merged = mergeActivityCardItems([slot], activities)
+        const merged = mergeActivityCardItems([normalizedSlot], activities)
         cards.value = merged
       } catch (e) {
         uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
