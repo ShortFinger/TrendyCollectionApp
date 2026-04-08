@@ -180,19 +180,27 @@
       return Boolean(jt && jt !== 'none' && ju)
     })
 
-    const parsePayload = (item) => {
-      try { return JSON.parse(item.payload) }
-      catch { return null }
-    }
-
     const isRenderablePayload = (payload) => {
       return payload != null && (Array.isArray(payload) || Object.prototype.toString.call(payload) === '[object Object]')
     }
 
+    const reportPayloadError = (ctx = {}, payload) => {
+      const payloadType = payload === null ? 'null' : Array.isArray(payload) ? 'array' : typeof payload
+      console.warn('[appconfig][payload-invalid]', {
+        pageCode: ctx.pageCode || 'home',
+        slotType: ctx.slotType || '',
+        componentType: ctx.componentType || '',
+        payloadType,
+        appVersion: '1.0.0'
+      })
+    }
+
     const normalizePayloadForRender = (item, ctx = {}) => {
       const payload = item?.payload
-      if (isRenderablePayload(payload)) return payload
-      // 暂时先返回 null，后续实现降级对象与上报
+      if (isRenderablePayload(payload)) {
+        return payload
+      }
+      reportPayloadError(ctx, payload)
       return null
     }
 
@@ -205,35 +213,23 @@
       }
     }
 
-    const runDevPayloadScaffoldCheck = () => {
-      if (process.env.NODE_ENV !== 'development') return
-      const TASK1_FAIL_FIRST_DEV_HOOK = true
-      devAssertNormalizePayload()
-      if (TASK1_FAIL_FIRST_DEV_HOOK) {
-        throw new Error('task1 deterministic fail-first hook')
-      }
-    }
-
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
-      const data = parsePayload(item)
-      if (data?.placeholder) {
-        searchPlaceholder.value = data.placeholder
-      }
+      const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'search_bar' })
+      if (data?.placeholder) searchPlaceholder.value = data.placeholder
     }
 
     const processBanner = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
-      const data = parsePayload(item)
-      if (data) {
-        bannerData.value = {
-          ...emptyBanner(),
-          ...data,
-          jumpType: data.jumpType || 'none',
-          jumpUrl: data.jumpUrl || ''
-        }
+      const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'banner_row' })
+      if (!data) return
+      bannerData.value = {
+        ...emptyBanner(),
+        ...data,
+        jumpType: data.jumpType || 'none',
+        jumpUrl: data.jumpUrl || ''
       }
     }
 
@@ -242,20 +238,17 @@
       if (!sorted.length) return
       const items = []
       for (const item of sorted) {
-        const data = parsePayload(item)
-        if (data) {
-          items.push({
-            id: item.id,
-            label: data.label || '',
-            icon: data.icon || '',
-            bgColor: data.bgColor || '#f5f5f5',
-            link: data.link || ''
-          })
-        }
+        const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'icon_grid' })
+        if (!data) continue
+        items.push({
+          id: item.id,
+          label: data.label || '',
+          icon: data.icon || '',
+          bgColor: data.bgColor || '#f5f5f5',
+          link: data.link || ''
+        })
       }
-      if (items.length) {
-        iconList.value = items
-      }
+      iconList.value = items
     }
 
     const processActivityCards = async (slot) => {
@@ -355,7 +348,9 @@
       }
     }
 
-    runDevPayloadScaffoldCheck()
+    if (process.env.NODE_ENV === 'development') {
+      devAssertNormalizePayload()
+    }
 
     onMounted(() => {
       loadHomeData()
