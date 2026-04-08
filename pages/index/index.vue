@@ -164,6 +164,7 @@
     const bannerData = ref(emptyBanner())
     const iconList = ref([])
     const cards = ref([])
+    const payloadErrorDedupKeys = new Set()
 
     const resetHomeSections = () => {
       searchPlaceholder.value = '搜索'
@@ -186,11 +187,16 @@
 
     const reportPayloadError = (ctx = {}, payload) => {
       const payloadType = payload === null ? 'null' : Array.isArray(payload) ? 'array' : typeof payload
+      const dedupKey = [ctx.pageCode || 'home', ctx.slotType || '', ctx.componentType || '', payloadType].join('|')
+      if (payloadErrorDedupKeys.has(dedupKey)) return
+      payloadErrorDedupKeys.add(dedupKey)
       console.warn('[appconfig][payload-invalid]', {
         pageCode: ctx.pageCode || 'home',
         slotType: ctx.slotType || '',
         componentType: ctx.componentType || '',
         payloadType,
+        requestId: ctx.requestId || '',
+        traceId: ctx.traceId || '',
         appVersion: '1.0.0'
       })
     }
@@ -248,7 +254,9 @@
           link: data.link || ''
         })
       }
-      iconList.value = items
+      if (items.length) {
+        iconList.value = items
+      }
     }
 
     const processActivityCards = async (slot) => {
