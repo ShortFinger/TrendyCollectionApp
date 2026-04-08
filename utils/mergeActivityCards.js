@@ -2,8 +2,13 @@
  * CMS 活动卡片槽位 + OrderClient display-batch 合并（对齐 spec 2026-04-03-appconfig-activity-card-ref）
  */
 
-const CONTENT_TYPE = 'activity_card_ref'
-const SLOT_TYPE = 'activity_card_grid'
+import {
+  CONTENT_TYPE_ACTIVITY_CARD_REF,
+  SLOT_TYPE_ACTIVITY_CARD_GRID,
+} from './cmsSlotContentTypes.js'
+
+const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
+const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
 
 function firstTagFromActivity(tags) {
   if (tags == null || String(tags).trim() === '') return ''
