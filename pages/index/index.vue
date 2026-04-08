@@ -207,9 +207,11 @@
 
     const runDevPayloadScaffoldCheck = () => {
       if (process.env.NODE_ENV !== 'development') return
-      // Task 1 Step 3 manual check snippet:
-      // temporarily change badStr expectation in devAssertNormalizePayload to observe fail-first behavior.
+      const TASK1_FAIL_FIRST_DEV_HOOK = true
       devAssertNormalizePayload()
+      if (TASK1_FAIL_FIRST_DEV_HOOK) {
+        throw new Error('task1 deterministic fail-first hook')
+      }
     }
 
     const processSearchBar = (slot) => {
