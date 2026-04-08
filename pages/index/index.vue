@@ -185,6 +185,26 @@
       catch { return null }
     }
 
+    const isRenderablePayload = (payload) => {
+      return payload != null && (Array.isArray(payload) || Object.prototype.toString.call(payload) === '[object Object]')
+    }
+
+    const normalizePayloadForRender = (item, ctx = {}) => {
+      const payload = item?.payload
+      if (isRenderablePayload(payload)) return payload
+      // 暂时先返回 null，后续实现降级对象与上报
+      return null
+    }
+
+    const devAssertNormalizePayload = () => {
+      const okObj = normalizePayloadForRender({ payload: { a: 1 } })
+      const okArr = normalizePayloadForRender({ payload: [{ a: 1 }] })
+      const badStr = normalizePayloadForRender({ payload: '{"a":1}' })
+      if (!okObj || !okArr || badStr !== null) {
+        throw new Error('normalizePayloadForRender contract failed')
+      }
+    }
+
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
@@ -325,6 +345,8 @@
         handleJump(item.jumpType || 'page', item.jumpUrl)
       }
     }
+
+    devAssertNormalizePayload()
 
     onMounted(() => {
       loadHomeData()
