@@ -11,6 +11,23 @@ import { normalizeCmsPayload } from './cmsContentPayload.js'
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
 
+/**
+ * @param {Record<string, { items?: Array<{ contentType?: string }> }> | null | undefined} slots
+ */
+function resolveTargetSlot(slots) {
+  if (slots == null || typeof slots !== 'object' || Array.isArray(slots)) {
+    return null
+  }
+  const direct = slots[SLOT_TYPE]
+  if (direct?.items?.length) return direct
+  for (const slot of Object.values(slots)) {
+    if ((slot?.items || []).some((i) => i.contentType === CONTENT_TYPE)) {
+      return slot
+    }
+  }
+  return null
+}
+
 function firstTagFromActivity(tags) {
   if (tags == null || String(tags).trim() === '') return ''
   return String(tags).split(',')[0].trim()
@@ -23,13 +40,11 @@ function pickString(v) {
 }
 
 /**
- * @param {Array<{ slotType?: string, sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots
+ * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots
  * @returns {string[]}
  */
 export function collectActivityIdsFromSlots(slots) {
-  if (!Array.isArray(slots)) return []
-  const target = slots.find((s) => s.slotType === SLOT_TYPE) ||
-    slots.find((s) => (s.items || []).some((i) => i.contentType === CONTENT_TYPE))
+  const target = resolveTargetSlot(slots)
   if (!target?.items?.length) return []
   const ids = []
   const seen = new Set()
@@ -76,7 +91,7 @@ function formatMoneyPrice(price) {
 }
 
 /**
- * @param {Array} slots 已发布页 slots
+ * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
  * @param {Array<{ id: string, status?: number, activityType?: number, title?: string, squareThumb?: string, longThumb?: string, images?: string, moneyPrice?: number|string, lowerLeftCornerMark?: string, upperLeftCornerMark?: string, upperRightCornerMark?: string, lowerRightCornerMark?: string, tags?: string }>} activities
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
  */
@@ -84,10 +99,7 @@ export function mergeActivityCardItems(slots, activities) {
   const list = Array.isArray(activities) ? activities : []
   const map = new Map(list.map((a) => [String(a.id), a]))
 
-  const targetSlot =
-    (Array.isArray(slots) && slots.find((s) => s.slotType === SLOT_TYPE)) ||
-    (Array.isArray(slots) &&
-      slots.find((s) => (s.items || []).some((i) => i.contentType === CONTENT_TYPE)))
+  const targetSlot = resolveTargetSlot(slots)
   if (!targetSlot?.items?.length) return []
 
   const sorted = [...targetSlot.items].sort(

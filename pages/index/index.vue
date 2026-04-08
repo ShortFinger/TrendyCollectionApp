@@ -142,6 +142,7 @@
       CONTENT_TYPE_SEARCH_BAR,
       CONTENT_TYPE_BANNER_SLIDE,
       CONTENT_TYPE_ICON_ENTRY,
+      SLOT_TYPE_ACTIVITY_CARD_GRID,
       filterItemsWithContentType,
       firstItemWithContentType,
     } from '@/utils/cmsSlotContentTypes.js'
@@ -225,9 +226,9 @@
       }
     }
 
-    const processActivityCards = async (slot) => {
+    const processActivityCards = async (slots) => {
       try {
-        const ids = collectActivityIdsFromSlots([slot])
+        const ids = collectActivityIdsFromSlots(slots)
         if (!ids.length) {
           cards.value = []
           return
@@ -238,7 +239,7 @@
           method: 'POST',
           data: { ids }
         })
-        const merged = mergeActivityCardItems([slot], activities)
+        const merged = mergeActivityCardItems(slots, activities)
         cards.value = merged
       } catch (e) {
         uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
@@ -254,9 +255,30 @@
     }
 
     const processSlots = async (slots) => {
-      for (const slot of slots) {
-        const processor = slotProcessors[slot.slotType]
-        if (processor) await processor(slot)
+      if (!slots || typeof slots !== 'object' || Array.isArray(slots)) return
+      let activityHandled = false
+      const ordered = Object.entries(slots)
+        .map(([slotType, slot]) => ({
+          slotType,
+          slot,
+          order: slot?.sortOrder ?? 0
+        }))
+        .sort(
+          (a, b) =>
+            a.order - b.order ||
+            a.slotType.localeCompare(b.slotType)
+        )
+      for (const { slotType, slot } of ordered) {
+        if (slotType === SLOT_TYPE_ACTIVITY_CARD_GRID) {
+          if (!activityHandled) {
+            const activityProcessor = slotProcessors[SLOT_TYPE_ACTIVITY_CARD_GRID]
+            if (activityProcessor) await activityProcessor(slots)
+            activityHandled = true
+          }
+          continue
+        }
+        const processor = slotProcessors[slotType]
+        if (processor) await processor({ ...slot, slotType })
       }
     }
 
