@@ -11,7 +11,12 @@
 
       <scroll-view class="scroll" scroll-y>
         <!-- 大 Banner -->
-        <view class="banner" :style="{ backgroundColor: bannerData.bgColor || '#00c36f' }" @click="handleBannerClick">
+        <view
+          v-if="bannerHasContent"
+          class="banner"
+          :style="{ backgroundColor: bannerData.bgColor || '#00c36f' }"
+          @click="handleBannerClick"
+        >
           <view class="banner-left">
             <text class="banner-title">{{ bannerData.title }}</text>
             <text class="banner-sub">{{ bannerData.subTitle }}</text>
@@ -23,56 +28,69 @@
             <text class="banner-right-text">{{ bannerData.rightText }}</text>
           </view>
         </view>
+        <view v-else class="banner-empty">
+          <text class="banner-empty-text">暂未配置 Banner</text>
+        </view>
   
         <!-- 图标宫格 -->
         <view class="icon-grid">
-          <view
-            v-for="item in iconList"
-            :key="item.id"
-            class="icon-item"
-            @click="handleCategoryClick(item)"
-          >
-            <view class="icon-circle" :style="{ backgroundColor: item.bgColor }">
-              <text class="icon-emoji">{{ item.icon }}</text>
+          <template v-if="iconList.length">
+            <view
+              v-for="item in iconList"
+              :key="item.id"
+              class="icon-item"
+              @click="handleCategoryClick(item)"
+            >
+              <view class="icon-circle" :style="{ backgroundColor: item.bgColor }">
+                <text class="icon-emoji">{{ item.icon }}</text>
+              </view>
+              <text class="icon-text">{{ item.label }}</text>
             </view>
-            <text class="icon-text">{{ item.label }}</text>
+          </template>
+          <view v-else class="section-empty">
+            <text class="section-empty-text">暂无入口</text>
           </view>
         </view>
   
         <!-- 卡片区域（来自 index.vue） -->
         <view class="card-list">
-          <view
-            v-for="(item, index) in cards"
-            :key="item.id"
-            class="card"
-            @click="handleCardClick(index, item)"
-          >
+          <template v-if="cards.length">
             <view
-              class="card-image"
-              :style="{ backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : '' }"
-            />
+              v-for="(item, index) in cards"
+              :key="item.id"
+              class="card"
+              @click="handleCardClick(index, item)"
+            >
+              <view
+                class="card-image"
+                :style="{ backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : '' }"
+              />
   
-            <view class="card-title">
-              <text>{{ item.title }}</text>
-            </view>
+              <view class="card-title">
+                <text>{{ item.title }}</text>
+              </view>
 
-            <view v-if="item.priceText" class="card-price-row">
-              <text class="card-price">{{ item.priceText }}</text>
-            </view>
-  
-            <view class="card-content">
-              <view class="card-desc">
-                <text>{{ item.desc }}</text>
+              <view v-if="item.priceText" class="card-price-row">
+                <text class="card-price">{{ item.priceText }}</text>
               </view>
   
-              <view class="card-footer">
-                <text class="card-author">{{ item.author }}</text>
-                <view class="card-meta">
-                  <text class="card-tag">{{ item.tag }}</text>
-                  <text class="card-like">{{ formatLikes(item.likes) }}</text>
+              <view class="card-content">
+                <view class="card-desc">
+                  <text>{{ item.desc }}</text>
+                </view>
+  
+                <view class="card-footer">
+                  <text class="card-author">{{ item.author }}</text>
+                  <view class="card-meta">
+                    <text class="card-tag">{{ item.tag }}</text>
+                    <text class="card-like">{{ formatLikes(item.likes) }}</text>
+                  </view>
                 </view>
               </view>
             </view>
+          </template>
+          <view v-else class="section-empty card-list-empty">
+            <text class="section-empty-text">暂无活动</text>
           </view>
         </view>
       </scroll-view>
@@ -83,7 +101,7 @@
     </template>
     
     <script setup>
-    import { onMounted, ref } from 'vue'
+    import { onMounted, ref, computed } from 'vue'
     import TabBar from '@/components/TabBar.vue'
     import PageSearchHeader from '@/components/PageSearchHeader.vue'
     import SearchBar from '@/components/SearchBar.vue'
@@ -104,54 +122,35 @@
     let pageCache = { data: null, timestamp: 0 }
     const CACHE_TTL = 3 * 60 * 1000 // 3 minutes
 
-    const searchPlaceholder = ref('新鲜草莓 1.9元/斤')
-    const bannerData = ref({
-      title: '新春生鲜礼遇',
-      subTitle: '全场满99减20元',
-      rightText: 'Fresh fruits bank',
-      buttonText: '立即抢购',
+    const emptyBanner = () => ({
+      title: '',
+      subTitle: '',
+      rightText: '',
+      buttonText: '',
       jumpType: 'none',
       jumpUrl: '',
-      bgColor: '#00c36f'
+      bgColor: ''
     })
 
-    const iconList = ref([
-      { id: 1, label: '时令水果', icon: '🍎', bgColor: '#e6f7ff' },
-      { id: 2, label: '新鲜蔬菜', icon: '🥦', bgColor: '#e8f9f0' },
-      { id: 3, label: '海鲜水产', icon: '🦐', bgColor: '#e9f1ff' },
-      { id: 4, label: '肉禽蛋类', icon: '🍗', bgColor: '#fff0f0' },
-      { id: 5, label: '乳品烘焙', icon: '🥛', bgColor: '#fef3e3' },
-    ])
-    
-    const cards = ref([
-      {
-        id: 1,
-        title: 'Food post',
-        desc: '20分钟搞定！超级好吃的蒜香大虾做法',
-        author: '雨莎小李',
-        tag: '图文',
-        likes: 1200,
-        coverUrl: ''
-      },
-      {
-        id: 2,
-        title: 'Healthy',
-        desc: '周末减脂餐：彩虹色沙拉碗',
-        author: '健身厨',
-        tag: '健康餐',
-        likes: 856,
-        coverUrl: ''
-      },
-      {
-        id: 3,
-        title: 'Promotion',
-        desc: '产地实拍：这就是我们要的顶级牛里脊',
-        author: '生鲜达人',
-        tag: '生鲜推荐',
-        likes: 2000,
-        coverUrl: ''
-      }
-    ])
+    const searchPlaceholder = ref('搜索')
+    const bannerData = ref(emptyBanner())
+    const iconList = ref([])
+    const cards = ref([])
+
+    const resetHomeSections = () => {
+      searchPlaceholder.value = '搜索'
+      bannerData.value = emptyBanner()
+      iconList.value = []
+      cards.value = []
+    }
+
+    const bannerHasContent = computed(() => {
+      const b = bannerData.value
+      if ((b.title || '').trim()) return true
+      const jt = b.jumpType
+      const ju = (b.jumpUrl || '').trim()
+      return Boolean(jt && jt !== 'none' && ju)
+    })
 
     const parsePayload = (item) => {
       try { return JSON.parse(item.payload) }
@@ -172,7 +171,12 @@
       if (!item) return
       const data = parsePayload(item)
       if (data) {
-        bannerData.value = { ...bannerData.value, ...data }
+        bannerData.value = {
+          ...emptyBanner(),
+          ...data,
+          jumpType: data.jumpType || 'none',
+          jumpUrl: data.jumpUrl || ''
+        }
       }
     }
 
@@ -212,9 +216,6 @@
         })
         const merged = mergeActivityCardItems([slot], activities)
         cards.value = merged
-        if (!merged.length) {
-          uni.showToast({ title: '暂无可展示活动', icon: 'none' })
-        }
       } catch (e) {
         uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
         cards.value = []
@@ -281,6 +282,7 @@
 
     const loadHomeData = async () => {
       try {
+        resetHomeSections()
         const page = await fetchHomePage()
         if (page?.slots) {
           await processSlots(page.slots)
@@ -389,6 +391,39 @@
     .banner-right-text {
       font-size: 22rpx;
       opacity: 0.5;
+    }
+
+    .banner-empty {
+      background-color: #f0f0f0;
+      border-radius: 24rpx;
+      padding: 48rpx 28rpx;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .banner-empty-text {
+      font-size: 26rpx;
+      color: #999;
+    }
+
+    .section-empty {
+      width: 100%;
+      padding: 48rpx 24rpx;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .section-empty-text {
+      font-size: 26rpx;
+      color: #999;
+    }
+
+    .card-list-empty {
+      width: 100%;
+      min-height: 160rpx;
+      margin-top: 0;
     }
     
     /* 图标宫格 */
