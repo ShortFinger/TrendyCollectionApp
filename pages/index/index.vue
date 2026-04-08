@@ -207,13 +207,9 @@
 
     const runDevPayloadScaffoldCheck = () => {
       if (process.env.NODE_ENV !== 'development') return
-      try {
-        devAssertNormalizePayload()
-        // Task 1 Step 3 manual check snippet:
-        // temporarily change badStr expectation in devAssertNormalizePayload to observe failure log below.
-      } catch (error) {
-        console.warn('[appconfig][payload-scaffold-check-failed]', error)
-      }
+      // Task 1 Step 3 manual check snippet:
+      // temporarily change badStr expectation in devAssertNormalizePayload to observe fail-first behavior.
+      devAssertNormalizePayload()
     }
 
     const processSearchBar = (slot) => {
