@@ -166,6 +166,7 @@
     const iconList = ref([])
     const cards = ref([])
     const payloadErrorDedupKeys = new Set()
+    const payloadReportTraceCtx = ref({ requestId: '', traceId: '' })
 
     const resetHomeSections = () => {
       searchPlaceholder.value = '搜索'
@@ -214,7 +215,8 @@
     const devAssertNormalizePayload = () => {
       const okObj = normalizePayloadForRender({ payload: { a: 1 } })
       const okArr = normalizePayloadForRender({ payload: [{ a: 1 }] })
-      if (!okObj || !okArr) {
+      const badType = isRenderablePayload('{"a":1}')
+      if (!okObj || !okArr || badType !== false) {
         throw new Error('normalizePayloadForRender contract failed')
       }
     }
@@ -222,14 +224,14 @@
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
-      const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'search_bar' })
+      const data = normalizePayloadForRender(item, { ...payloadReportTraceCtx.value, pageCode: 'home', slotType: slot.slotType, componentType: 'search_bar' })
       if (data?.placeholder) searchPlaceholder.value = data.placeholder
     }
 
     const processBanner = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
-      const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'banner_row' })
+      const data = normalizePayloadForRender(item, { ...payloadReportTraceCtx.value, pageCode: 'home', slotType: slot.slotType, componentType: 'banner_row' })
       if (!data) return
       bannerData.value = {
         ...emptyBanner(),
@@ -244,7 +246,7 @@
       if (!sorted.length) return
       const items = []
       for (const item of sorted) {
-        const data = normalizePayloadForRender(item, { pageCode: 'home', slotType: slot.slotType, componentType: 'icon_grid' })
+        const data = normalizePayloadForRender(item, { ...payloadReportTraceCtx.value, pageCode: 'home', slotType: slot.slotType, componentType: 'icon_grid' })
         if (!data) continue
         items.push({
           id: item.id,
@@ -264,6 +266,7 @@
         const normalizedItems = (slot.items || []).map((item) => {
           if (item.contentType !== CONTENT_TYPE_ACTIVITY_CARD_REF) return item
           const payload = normalizePayloadForRender(item, {
+            ...payloadReportTraceCtx.value,
             pageCode: 'home',
             slotType: slot.slotType,
             componentType: 'activity_card_grid'
@@ -351,7 +354,13 @@
     const loadHomeData = async () => {
       try {
         resetHomeSections()
+        payloadErrorDedupKeys.clear()
+        payloadReportTraceCtx.value = { requestId: '', traceId: '' }
         const page = await fetchHomePage()
+        payloadReportTraceCtx.value = {
+          requestId: (page?.requestId ?? page?.reqId ?? page?.requestID ?? '').toString().trim(),
+          traceId: (page?.traceId ?? page?.traceID ?? '').toString().trim()
+        }
         if (page?.slots) {
           await processSlots(page.slots)
         }
