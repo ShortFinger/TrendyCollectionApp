@@ -22,7 +22,7 @@ function pickString(v) {
 }
 
 /**
- * @param {Array<{ slotType?: string, sortOrder?: number, items?: Array<{ contentType?: string, payload?: string, sortOrder?: number }> }>} slots
+ * @param {Array<{ slotType?: string, sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array, sortOrder?: number }> }>} slots
  * @returns {string[]}
  */
 export function collectActivityIdsFromSlots(slots) {
@@ -37,10 +37,8 @@ export function collectActivityIdsFromSlots(slots) {
   )
   for (const it of sorted) {
     if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    let payload
-    try {
-      payload = JSON.parse(it.payload)
-    } catch {
+    const payload = it.payload
+    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
       continue
     }
     const aid = pickString(payload.activityId)
@@ -100,10 +98,8 @@ export function mergeActivityCardItems(slots, activities) {
 
   for (const it of sorted) {
     if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    let payload
-    try {
-      payload = JSON.parse(it.payload)
-    } catch {
+    const payload = it.payload
+    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
       continue
     }
     const activityId = pickString(payload.activityId)
