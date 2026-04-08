@@ -92,6 +92,13 @@
       collectActivityIdsFromSlots,
       mergeActivityCardItems
     } from '@/utils/mergeActivityCards.js'
+    import {
+      CONTENT_TYPE_SEARCH_BAR,
+      CONTENT_TYPE_BANNER_SLIDE,
+      CONTENT_TYPE_ICON_ENTRY,
+      filterItemsWithContentType,
+      firstItemWithContentType,
+    } from '@/utils/cmsSlotContentTypes.js'
 
     // --- CMS page cache (module-level, resets on cold start) ---
     let pageCache = { data: null, timestamp: 0 }
@@ -152,7 +159,7 @@
     }
 
     const processSearchBar = (slot) => {
-      const item = slot.items?.[0]
+      const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
       const data = parsePayload(item)
       if (data?.placeholder) {
@@ -161,7 +168,7 @@
     }
 
     const processBanner = (slot) => {
-      const item = slot.items?.[0]
+      const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
       const data = parsePayload(item)
       if (data) {
@@ -170,10 +177,8 @@
     }
 
     const processIconGrid = (slot) => {
-      if (!slot.items?.length) return
-      const sorted = [...slot.items].sort(
-        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-      )
+      const sorted = filterItemsWithContentType(slot.items, CONTENT_TYPE_ICON_ENTRY)
+      if (!sorted.length) return
       const items = []
       for (const item of sorted) {
         const data = parsePayload(item)
@@ -218,7 +223,7 @@
 
     const slotProcessors = {
       search_bar: processSearchBar,
-      banner: processBanner,
+      banner_row: processBanner,
       icon_grid: processIconGrid,
       activity_card_grid: processActivityCards
     }
