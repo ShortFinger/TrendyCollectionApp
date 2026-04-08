@@ -61,10 +61,38 @@
               class="card"
               @click="handleCardClick(index, item)"
             >
-              <view
-                class="card-image"
-                :style="{ backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : '' }"
-              />
+              <view class="card-cover">
+                <view
+                  class="card-image"
+                  :style="{ backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : '' }"
+                />
+                <view class="card-corner-marks">
+                  <image
+                    v-if="item.cornerMarks?.upperLeft"
+                    class="card-corner card-corner-tl"
+                    :src="item.cornerMarks.upperLeft"
+                    mode="aspectFit"
+                  />
+                  <image
+                    v-if="item.cornerMarks?.upperRight"
+                    class="card-corner card-corner-tr"
+                    :src="item.cornerMarks.upperRight"
+                    mode="aspectFit"
+                  />
+                  <image
+                    v-if="item.cornerMarks?.lowerLeft"
+                    class="card-corner card-corner-bl"
+                    :src="item.cornerMarks.lowerLeft"
+                    mode="aspectFit"
+                  />
+                  <image
+                    v-if="item.cornerMarks?.lowerRight"
+                    class="card-corner card-corner-br"
+                    :src="item.cornerMarks.lowerRight"
+                    mode="aspectFit"
+                  />
+                </view>
+              </view>
   
               <view class="card-title">
                 <text>{{ item.title }}</text>
@@ -586,6 +614,46 @@
       width: 100%;
       height: 200rpx;
       background-color: #f5f5f5;
+    }
+
+    .card-cover {
+      position: relative;
+      width: 100%;
+    }
+
+    .card-corner-marks {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .card-corner {
+      position: absolute;
+      width: 56rpx;
+      height: 56rpx;
+    }
+
+    .card-corner-tl {
+      top: 8rpx;
+      left: 8rpx;
+    }
+
+    .card-corner-tr {
+      top: 8rpx;
+      right: 8rpx;
+    }
+
+    .card-corner-bl {
+      bottom: 8rpx;
+      left: 8rpx;
+    }
+
+    .card-corner-br {
+      bottom: 8rpx;
+      right: 8rpx;
     }
 
     .card-title {

@@ -80,7 +80,7 @@ function formatMoneyPrice(price) {
 
 /**
  * @param {Array} slots 已发布页 slots
- * @param {Array<{ id: string, status?: number, activityType?: number, title?: string, squareThumb?: string, longThumb?: string, images?: string, moneyPrice?: number|string, lowerLeftCornerMark?: string, upperLeftCornerMark?: string, lowerRightCornerMark?: string, tags?: string }>} activities
+ * @param {Array<{ id: string, status?: number, activityType?: number, title?: string, squareThumb?: string, longThumb?: string, images?: string, moneyPrice?: number|string, lowerLeftCornerMark?: string, upperLeftCornerMark?: string, upperRightCornerMark?: string, lowerRightCornerMark?: string, tags?: string }>} activities
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
  */
 export function mergeActivityCardItems(slots, activities) {
@@ -147,6 +147,7 @@ export function mergeActivityCardItems(slots, activities) {
       cornerMarks: {
         lowerLeft: pickString(payload.lowerLeftCornerMark) || pickString(act.lowerLeftCornerMark),
         upperLeft: pickString(payload.upperLeftCornerMark) || pickString(act.upperLeftCornerMark),
+        upperRight: pickString(payload.upperRightCornerMark) || pickString(act.upperRightCornerMark),
         lowerRight: pickString(payload.lowerRightCornerMark) || pickString(act.lowerRightCornerMark)
       }
     })
