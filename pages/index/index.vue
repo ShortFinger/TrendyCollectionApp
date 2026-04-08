@@ -145,6 +145,7 @@
       filterItemsWithContentType,
       firstItemWithContentType,
     } from '@/utils/cmsSlotContentTypes.js'
+    import { normalizeCmsPayloadAsObject } from '@/utils/cmsContentPayload.js'
 
     // --- CMS page cache (module-level, resets on cold start) ---
     let pageCache = { data: null, timestamp: 0 }
@@ -180,15 +181,10 @@
       return Boolean(jt && jt !== 'none' && ju)
     })
 
-    const parsePayload = (item) => {
-      try { return JSON.parse(item.payload) }
-      catch { return null }
-    }
-
     const processSearchBar = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_SEARCH_BAR)
       if (!item) return
-      const data = parsePayload(item)
+      const data = normalizeCmsPayloadAsObject(item.payload)
       if (data?.placeholder) {
         searchPlaceholder.value = data.placeholder
       }
@@ -197,7 +193,7 @@
     const processBanner = (slot) => {
       const item = firstItemWithContentType(slot.items, CONTENT_TYPE_BANNER_SLIDE)
       if (!item) return
-      const data = parsePayload(item)
+      const data = normalizeCmsPayloadAsObject(item.payload)
       if (data) {
         bannerData.value = {
           ...emptyBanner(),
@@ -213,7 +209,7 @@
       if (!sorted.length) return
       const items = []
       for (const item of sorted) {
-        const data = parsePayload(item)
+        const data = normalizeCmsPayloadAsObject(item.payload)
         if (data) {
           items.push({
             id: item.id,

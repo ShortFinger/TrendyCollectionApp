@@ -6,6 +6,7 @@ import {
   CONTENT_TYPE_ACTIVITY_CARD_REF,
   SLOT_TYPE_ACTIVITY_CARD_GRID,
 } from './cmsSlotContentTypes.js'
+import { normalizeCmsPayload } from './cmsContentPayload.js'
 
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
@@ -22,7 +23,7 @@ function pickString(v) {
 }
 
 /**
- * @param {Array<{ slotType?: string, sortOrder?: number, items?: Array<{ contentType?: string, payload?: string, sortOrder?: number }> }>} slots
+ * @param {Array<{ slotType?: string, sortOrder?: number, items?: Array<{ contentType?: string, payload?: object|string|null, sortOrder?: number }> }>} slots
  * @returns {string[]}
  */
 export function collectActivityIdsFromSlots(slots) {
@@ -36,13 +37,9 @@ export function collectActivityIdsFromSlots(slots) {
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
   )
   for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    let payload
-    try {
-      payload = JSON.parse(it.payload)
-    } catch {
-      continue
-    }
+    if (it.contentType !== CONTENT_TYPE) continue
+    const payload = normalizeCmsPayload(it.payload)
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
     const aid = pickString(payload.activityId)
     if (aid && !seen.has(aid)) {
       seen.add(aid)
@@ -99,13 +96,9 @@ export function mergeActivityCardItems(slots, activities) {
   const out = []
 
   for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    let payload
-    try {
-      payload = JSON.parse(it.payload)
-    } catch {
-      continue
-    }
+    if (it.contentType !== CONTENT_TYPE) continue
+    const payload = normalizeCmsPayload(it.payload)
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) continue
     const activityId = pickString(payload.activityId)
     if (!activityId) continue
     const act = map.get(activityId)
