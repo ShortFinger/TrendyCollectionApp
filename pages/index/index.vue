@@ -14,41 +14,50 @@
         <view
           v-if="bannerHasContent"
           class="banner"
-          :style="{ backgroundColor: bannerData.bgColor || '#00c36f' }"
+          :class="{ 'banner--no-photo': !bannerImageSrc }"
+          :style="bannerShellStyle"
           @click="handleBannerClick"
         >
           <view class="banner-left">
             <text class="banner-title">{{ bannerData.title }}</text>
             <text class="banner-sub">{{ bannerData.subTitle }}</text>
-            <view class="banner-btn">
+            <view v-if="bannerButtonVisible" class="banner-btn">
               <text class="banner-btn-text">{{ bannerData.buttonText }}</text>
             </view>
           </view>
           <view class="banner-right">
-            <text class="banner-right-text">{{ bannerData.rightText }}</text>
+            <text v-if="(bannerData.rightText || '').trim()" class="banner-right-text">{{
+              bannerData.rightText
+            }}</text>
           </view>
         </view>
         <view v-else class="banner-empty">
           <text class="banner-empty-text">暂未配置 Banner</text>
         </view>
   
-        <!-- 图标宫格 -->
-        <view class="icon-grid">
-          <template v-if="iconList.length">
+        <!-- 图标宫格（无数据时不渲染） -->
+        <view v-if="iconList.length" class="icon-grid">
+          <view
+            v-for="item in iconList"
+            :key="item.id"
+            class="icon-item"
+            @click="handleCategoryClick(item)"
+          >
             <view
-              v-for="item in iconList"
-              :key="item.id"
-              class="icon-item"
-              @click="handleCategoryClick(item)"
+              class="icon-circle"
+              :style="{
+                backgroundColor: item.imageUrl ? (item.bgColor || '#f5f5f5') : '#e5e5e5'
+              }"
             >
-              <view class="icon-circle" :style="{ backgroundColor: item.bgColor }">
-                <text class="icon-emoji">{{ item.icon }}</text>
-              </view>
-              <text class="icon-text">{{ item.label }}</text>
+              <image
+                v-if="item.imageUrl"
+                class="icon-circle-img"
+                :src="item.imageUrl"
+                mode="aspectFill"
+              />
+              <text v-else-if="item.icon" class="icon-emoji">{{ item.icon }}</text>
             </view>
-          </template>
-          <view v-else class="section-empty">
-            <text class="section-empty-text">暂无入口</text>
+            <text v-if="item.title" class="icon-title">{{ item.title }}</text>
           </view>
         </view>
   
@@ -64,31 +73,22 @@
               <view class="card-cover">
                 <view
                   class="card-image"
-                  :style="{ backgroundImage: item.coverUrl ? `url(${item.coverUrl})` : '' }"
+                  :style="{ backgroundImage: item.squareThumb ? `url(${item.squareThumb})` : '' }"
                 />
                 <view class="card-corner-marks">
-                  <image
-                    v-if="item.cornerMarks?.upperLeft"
+                  <image  v-if="item.lowerLeftCornerMark"
                     class="card-corner card-corner-tl"
-                    :src="item.cornerMarks.upperLeft"
+                    :src="item.lowerLeftCornerMark"
                     mode="aspectFit"
                   />
-                  <image
-                    v-if="item.cornerMarks?.upperRight"
-                    class="card-corner card-corner-tr"
-                    :src="item.cornerMarks.upperRight"
+                  <image  v-if="item.upperLeftCornerMark"
+                    class="card-corner card-corner-tl"
+                    :src="item.upperLeftCornerMark"
                     mode="aspectFit"
                   />
-                  <image
-                    v-if="item.cornerMarks?.lowerLeft"
-                    class="card-corner card-corner-bl"
-                    :src="item.cornerMarks.lowerLeft"
-                    mode="aspectFit"
-                  />
-                  <image
-                    v-if="item.cornerMarks?.lowerRight"
+                  <image  v-if="item.lowerRightCornerMark"
                     class="card-corner card-corner-br"
-                    :src="item.cornerMarks.lowerRight"
+                    :src="item.lowerRightCornerMark"
                     mode="aspectFit"
                   />
                 </view>
@@ -157,9 +157,9 @@
       subTitle: '',
       rightText: '',
       buttonText: '',
+      imageUrl: '',
       jumpType: 'none',
-      jumpUrl: '',
-      bgColor: ''
+      jumpUrl: ''
     })
 
     const searchPlaceholder = ref('搜索')
@@ -176,8 +176,26 @@
       cards.value = []
     }
 
+    const bannerImageSrc = computed(() => (bannerData.value.imageUrl || '').trim())
+
+    const bannerShellStyle = computed(() => {
+      const url = bannerImageSrc.value
+      if (!url) {
+        return { backgroundColor: '#e5e5e5' }
+      }
+      return {
+        backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0.2) 100%), url(${url})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }
+    })
+
+    const bannerButtonVisible = computed(() => (bannerData.value.buttonText || '').trim() !== '')
+
     const bannerHasContent = computed(() => {
       const b = bannerData.value
+      if (bannerImageSrc.value) return true
       if ((b.title || '').trim()) return true
       const jt = b.jumpType
       const ju = (b.jumpUrl || '').trim()
@@ -243,11 +261,19 @@
         contentType: CONTENT_TYPE_BANNER_SLIDE
       })
       if (!data) return
+      const jumpUrl = String(data.jumpUrl || data.linkUrl || '').trim()
+      const jumpTypeRaw = data.jumpType != null ? String(data.jumpType).trim() : ''
+      const jumpType =
+        jumpTypeRaw && jumpTypeRaw !== 'none'
+          ? jumpTypeRaw
+          : jumpUrl
+            ? 'page'
+            : 'none'
       bannerData.value = {
         ...emptyBanner(),
         ...data,
-        jumpType: data.jumpType || 'none',
-        jumpUrl: data.jumpUrl || ''
+        jumpType,
+        jumpUrl
       }
     }
 
@@ -263,12 +289,16 @@
           contentType: CONTENT_TYPE_ICON_ENTRY
         })
         if (!data) continue
+        const imageUrl = String(data.imageUrl || '').trim()
+        const title = String(data.title || data.label || '').trim()
         items.push({
           id: item.id,
+          title,
           label: data.label || '',
+          imageUrl,
           icon: data.icon || '',
           bgColor: data.bgColor || '#f5f5f5',
-          link: data.link || ''
+          link: String(data.link || data.linkUrl || '').trim()
         })
       }
       if (items.length) {
@@ -429,17 +459,39 @@
     
     /* Banner */
     .banner {
-      background-color: #00c36f;
+      background-color: #e5e5e5;
       border-radius: 24rpx;
       padding: 32rpx 28rpx;
+      box-sizing: border-box;
+      height: 280rpx;
       flex-direction: row;
       display: flex;
+      align-items: center;
       justify-content: space-between;
       color: #fff;
+      overflow: hidden;
+    }
+
+    .banner--no-photo {
+      color: #333;
+    }
+
+    .banner--no-photo .banner-sub {
+      opacity: 1;
+      color: #666;
+    }
+
+    .banner--no-photo .banner-right-text {
+      opacity: 1;
+      color: #999;
     }
     
     .banner-left {
       flex: 1.4;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     
     .banner-title {
@@ -475,7 +527,7 @@
       justify-content: flex-end;
       display: flex;
     }
-    
+
     .banner-right-text {
       font-size: 22rpx;
       opacity: 0.5;
@@ -534,22 +586,30 @@
     }
     
     .icon-circle {
+      position: relative;
       width: 80rpx;
       height: 80rpx;
       border-radius: 40rpx;
+      overflow: hidden;
       justify-content: center;
       align-items: center;
       display: flex;
+    }
+
+    .icon-circle-img {
+      width: 100%;
+      height: 100%;
     }
     
     .icon-emoji {
       font-size: 40rpx;
     }
     
-    .icon-text {
+    .icon-title {
       margin-top: 12rpx;
       font-size: 22rpx;
       color: #666;
+      text-align: center;
     }
     
     /* 限时秒杀 */

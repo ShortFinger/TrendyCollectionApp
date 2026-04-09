@@ -41,19 +41,19 @@ const active = props.active
 
 const handleClick = (item) => {
   if (item.key === 'home' && active !== 'home') {
-    uni.navigateTo({
+    uni.switchTab({
       url: '/pages/index/index'
     })
   }
 
   if (item.key === 'category' && active !== 'category') {
-    uni.navigateTo({
+    uni.switchTab({
       url: '/pages/category/index'
     })
   }
 
   if (item.key === 'mine' && active !== 'mine') {
-    uni.navigateTo({
+    uni.switchTab({
       url: '/pages/mine/index'
     })
   }
