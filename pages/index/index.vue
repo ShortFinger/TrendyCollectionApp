@@ -133,7 +133,7 @@
     import TabBar from '@/components/TabBar.vue'
     import PageSearchHeader from '@/components/PageSearchHeader.vue'
     import SearchBar from '@/components/SearchBar.vue'
-    import { request, API_BASE } from '@/utils/request.js'
+    import { fetchPublishedSlotsForPage } from '@/utils/cmsSlotLoader.js'
     import { mergeActivityCardItems } from '@/utils/mergeActivityCards.js'
     import {
       CONTENT_TYPE_SEARCH_BAR,
@@ -145,10 +145,7 @@
     } from '@/utils/cmsSlotContentTypes.js'
 
     const CMS_PAGE_KEY = 'home'
-
-    // --- CMS page cache (module-level, resets on cold start) ---
-    let pageCache = { data: null, timestamp: 0 }
-    const CACHE_TTL = 3 * 60 * 1000 // 3 minutes
+    const CMS_SLOT_TYPES = ['search_bar', 'banner_row', 'icon_grid', 'activity_card_grid']
 
     const emptyBanner = () => ({
       title: '',
@@ -314,21 +311,6 @@
       }
     }
 
-    const fetchHomePage = async () => {
-      const now = Date.now()
-      if (pageCache.data && (now - pageCache.timestamp < CACHE_TTL)) {
-        return pageCache.data
-      }
-      const data = await request({
-        url: '/v1/pages/home/page',
-        base: API_BASE.app,
-        method: 'GET',
-        data: { channel: 'mp-weixin', appVersion: '1.0.0' }
-      })
-      pageCache = { data, timestamp: Date.now() }
-      return data
-    }
-
     const formatLikes = (likes) => {
       const value = Number(likes) || 0
       if (value >= 1000) {
@@ -363,13 +345,22 @@
         resetHomeSections()
         payloadErrorDedupKeys.clear()
         payloadReportTraceCtx.value = { requestId: '', traceId: '' }
-        const page = await fetchHomePage()
-        payloadReportTraceCtx.value = {
-          requestId: (page?.requestId ?? page?.reqId ?? page?.requestID ?? '').toString().trim(),
-          traceId: (page?.traceId ?? page?.traceID ?? '').toString().trim()
+        const { slots, errors, pageNotFound, meta } = await fetchPublishedSlotsForPage({
+          pageKey: CMS_PAGE_KEY,
+          slotTypes: CMS_SLOT_TYPES,
+          channel: 'mp-weixin',
+          appVersion: '1.0.0'
+        })
+        payloadReportTraceCtx.value = meta
+        if (pageNotFound) {
+          uni.showToast({ title: '页面不存在', icon: 'none' })
+          return
         }
-        if (page?.slots) {
-          await processSlots(page.slots)
+        await processSlots(slots)
+        if (errors.length > 0 && Object.keys(slots).length > 0) {
+          uni.showToast({ title: '部分内容加载失败', icon: 'none' })
+        } else if (errors.length === CMS_SLOT_TYPES.length) {
+          uni.showToast({ title: '首页数据加载失败', icon: 'none' })
         }
       } catch (error) {
         uni.showToast({ title: '首页数据加载失败', icon: 'none' })
