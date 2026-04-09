@@ -143,6 +143,10 @@
       filterItemsWithContentType,
       firstItemWithContentType,
     } from '@/utils/cmsSlotContentTypes.js'
+    import {
+      isRenderablePayload,
+      normalizeCmsItemPayload
+    } from '@/utils/cmsPayloadShape.js'
 
     const CMS_PAGE_KEY = 'home'
     const CMS_SLOT_TYPES = ['search_bar', 'banner_row', 'icon_grid', 'activity_card_grid']
@@ -179,10 +183,6 @@
       return Boolean(jt && jt !== 'none' && ju)
     })
 
-    const isRenderablePayload = (payload) => {
-      return payload != null && (Array.isArray(payload) || Object.prototype.toString.call(payload) === '[object Object]')
-    }
-
     const reportPayloadError = (ctx = {}, payload) => {
       const payloadType = payload === null ? 'null' : Array.isArray(payload) ? 'array' : typeof payload
       const dedupKey = [ctx.pageCode || CMS_PAGE_KEY, ctx.slotType || '', ctx.contentType || '', payloadType].join('|')
@@ -200,19 +200,22 @@
     }
 
     const normalizePayloadForRender = (item, ctx = {}) => {
-      const payload = item?.payload
-      if (isRenderablePayload(payload)) {
-        return payload
-      }
-      reportPayloadError(ctx, payload)
-      return null
+      return normalizeCmsItemPayload(item, ctx, (c, p) => reportPayloadError(c, p))
     }
 
     const devAssertNormalizePayload = () => {
       const okObj = normalizePayloadForRender({ payload: { a: 1 } })
       const okArr = normalizePayloadForRender({ payload: [{ a: 1 }] })
-      const badType = isRenderablePayload('{"a":1}')
-      if (!okObj || !okArr || badType !== false) {
+      const okFromJsonString = normalizePayloadForRender({ payload: '{"a":1}' })
+      if (
+        !okObj ||
+        !okArr ||
+        typeof okFromJsonString !== 'object' ||
+        okFromJsonString.a !== 1
+      ) {
+        throw new Error('normalizePayloadForRender contract failed')
+      }
+      if (isRenderablePayload('{"a":1}') !== false) {
         throw new Error('normalizePayloadForRender contract failed')
       }
     }
