@@ -134,10 +134,7 @@
     import PageSearchHeader from '@/components/PageSearchHeader.vue'
     import SearchBar from '@/components/SearchBar.vue'
     import { request, API_BASE } from '@/utils/request.js'
-    import {
-      collectActivityIdsFromSlots,
-      mergeActivityCardItems
-    } from '@/utils/mergeActivityCards.js'
+    import { mergeActivityCardItems } from '@/utils/mergeActivityCards.js'
     import {
       CONTENT_TYPE_SEARCH_BAR,
       CONTENT_TYPE_BANNER_SLIDE,
@@ -278,25 +275,8 @@
       }
     }
 
-    const processActivityCards = async (slots) => {
-      try {
-        const ids = collectActivityIdsFromSlots(slots)
-        if (!ids.length) {
-          cards.value = []
-          return
-        }
-        const activities = await request({
-          url: '/activities/display-batch',
-          base: API_BASE.order,
-          method: 'POST',
-          data: { ids }
-        })
-        const merged = mergeActivityCardItems(slots, activities)
-        cards.value = merged
-      } catch (e) {
-        uni.showToast({ title: '活动卡片加载失败', icon: 'none' })
-        cards.value = []
-      }
+    const processActivityCards = (slots) => {
+      cards.value = mergeActivityCardItems(slots)
     }
 
     const slotProcessors = {

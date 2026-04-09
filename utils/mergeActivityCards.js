@@ -1,5 +1,6 @@
 /**
- * CMS 活动卡片槽位 + OrderClient display-batch 合并（对齐 spec 2026-04-03-appconfig-activity-card-ref）
+ * CMS 活动卡片槽位合并：活动展示字段来自已发布页条目的 activityDisplay（水合）
+ * 对齐 spec 2026-04-09-remove-client-display-batch
  */
 
 import {
@@ -38,39 +39,12 @@ function pickString(v) {
   return s
 }
 
-/**
- * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
- * @returns {string[]}
- */
-export function collectActivityIdsFromSlots(slots) {
-  const target = resolveTargetSlot(slots)
-  if (!target?.items?.length) return []
-  const ids = []
-  const seen = new Set()
-  const sorted = [...target.items].sort(
-    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
-  )
-  for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    const payload = it.payload
-    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
-      continue
-    }
-    const aid = pickString(payload.activityId)
-    if (aid && !seen.has(aid)) {
-      seen.add(aid)
-      ids.push(aid)
-    }
-  }
-  return ids
-}
-
 function buildJumpUrl(activityId, activityType, payloadJumpType, payloadJumpUrl) {
   const jt = pickString(payloadJumpType) || 'page'
   const ju = pickString(payloadJumpUrl)
   if (ju) return { jumpType: jt, jumpUrl: ju }
-  const t = Number(activityType)
-  if (t === 7 || t === 8) {
+  const typeStr = pickString(activityType)
+  if (typeStr === 'ICHIBAN' || typeStr === 'UNLIMITED') {
     return {
       jumpType: 'page',
       jumpUrl: `/pages/ichibanKuji/index?activityId=${encodeURIComponent(activityId)}`
@@ -92,14 +66,10 @@ function formatMoneyPrice(price) {
 }
 
 /**
- * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number }> }>} slots 已发布页 slots（按 slotType 为键）
- * @param {Array<{ id: string, status?: number, activityType?: number, title?: string, squareThumb?: string, longThumb?: string, images?: string, moneyPrice?: number|string, lowerLeftCornerMark?: string, upperLeftCornerMark?: string, upperRightCornerMark?: string, lowerRightCornerMark?: string, tags?: string }>} activities
+ * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number, activityDisplay?: Object }> }>} slots 已发布页 slots（按 slotType 为键）
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
  */
-export function mergeActivityCardItems(slots, activities) {
-  const list = Array.isArray(activities) ? activities : []
-  const map = new Map(list.map((a) => [String(a.id), a]))
-
+export function mergeActivityCardItems(slots) {
   const targetSlot = resolveTargetSlot(slots)
   if (!targetSlot?.items?.length) return []
 
@@ -116,8 +86,8 @@ export function mergeActivityCardItems(slots, activities) {
     }
     const activityId = pickString(payload.activityId)
     if (!activityId) continue
-    const act = map.get(activityId)
-    if (!act || Number(act.status) !== 1) continue
+    const act = it.activityDisplay
+    if (!act || pickString(act.status) !== 'ON_SHELF') continue
 
     const title = pickString(payload.title) || pickString(act.title) || ''
     const coverUrl =
