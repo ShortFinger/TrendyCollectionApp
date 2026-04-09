@@ -7,6 +7,7 @@ import {
   CONTENT_TYPE_ACTIVITY_CARD_REF,
   SLOT_TYPE_ACTIVITY_CARD_GRID,
 } from './cmsSlotContentTypes.js'
+import { coercePayloadForRender, isRenderablePayload } from './cmsPayloadShape.js'
 
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
@@ -14,7 +15,7 @@ const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
 /**
  * @param {Record<string, { items?: Array<{ contentType?: string }> }> | null | undefined} slots
  */
-function resolveTargetSlot(slots) {
+export function resolveActivityCardTargetSlot(slots) {
   if (slots == null || typeof slots !== 'object' || Array.isArray(slots)) {
     return null
   }
@@ -70,7 +71,7 @@ function formatMoneyPrice(price) {
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
  */
 export function mergeActivityCardItems(slots) {
-  const targetSlot = resolveTargetSlot(slots)
+  const targetSlot = resolveActivityCardTargetSlot(slots)
   if (!targetSlot?.items?.length) return []
 
   const sorted = [...targetSlot.items].sort(
@@ -79,11 +80,12 @@ export function mergeActivityCardItems(slots) {
   const out = []
 
   for (const it of sorted) {
-    if (it.contentType !== CONTENT_TYPE || !it.payload) continue
-    const payload = it.payload
-    if (Array.isArray(payload) || Object.prototype.toString.call(payload) !== '[object Object]') {
-      continue
-    }
+    if (it.contentType !== CONTENT_TYPE) continue
+    const rawPayload = it.payload
+    if (rawPayload == null) continue
+    const payload = coercePayloadForRender(rawPayload)
+    if (!isRenderablePayload(payload) || Array.isArray(payload)) continue
+    if (Object.prototype.toString.call(payload) !== '[object Object]') continue
     const activityId = pickString(payload.activityId)
     if (!activityId) continue
     const act = it.activityDisplay
