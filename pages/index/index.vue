@@ -147,6 +147,7 @@
       isRenderablePayload,
       normalizeCmsItemPayload
     } from '@/utils/cmsPayloadShape.js'
+    import { logCmsHomeRenderDiagnostics } from '@/utils/cmsHomeRenderDiagnostics.js'
 
     const CMS_PAGE_KEY = 'home'
     const CMS_SLOT_TYPES = ['search_bar', 'banner_row', 'icon_grid', 'activity_card_grid']
@@ -360,6 +361,11 @@
           return
         }
         await processSlots(slots)
+        logCmsHomeRenderDiagnostics(
+          slots,
+          iconList.value.length,
+          cards.value.length
+        )
         if (errors.length > 0 && Object.keys(slots).length > 0) {
           uni.showToast({ title: '部分内容加载失败', icon: 'none' })
         } else if (errors.length === CMS_SLOT_TYPES.length) {
