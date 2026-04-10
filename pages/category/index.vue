@@ -66,12 +66,16 @@
         </view>
         <view v-else class="card-list">
           <template v-if="activityCards.length">
-            <ActivityFeedCard
+            <view
               v-for="(item, index) in activityCards"
               :key="item.id"
-              :item="item"
-              @cardTap="handleCardClick(index, $event)"
-            />
+              class="card-list-cell"
+            >
+              <ActivityFeedCard
+                :item="item"
+                @cardTap="handleCardClick(index, $event)"
+              />
+            </view>
           </template>
           <view v-else class="section-empty card-list-empty">
             <text class="section-empty-text">暂无活动</text>
@@ -443,12 +447,12 @@ onShow(() => {
 }
 
 .cat-sort-picker-text {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: #333333;
 }
 
 .cat-sort-picker-caret {
-  font-size: 18rpx;
+  font-size: 24rpx;
   color: #999999;
   line-height: 1;
   transition: transform 0.15s ease;
@@ -464,7 +468,6 @@ onShow(() => {
   top: 100%;
   margin-top: 8rpx;
   min-width: 102rpx;
-  padding: 8rpx 0;
   background-color: #ffffff;
   border-radius: 12rpx;
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
@@ -473,7 +476,7 @@ onShow(() => {
 }
 
 .cat-sort-dropdown-item {
-  padding: 20rpx 28rpx;
+  padding: 10rpx 10rpx;
 }
 
 .cat-sort-dropdown-item-active {
@@ -491,7 +494,7 @@ onShow(() => {
 }
 
 .cat-activity-hint {
-  padding: 48rpx 16rpx;
+  padding: 16rpx 16rpx;
   text-align: center;
 }
 
@@ -505,6 +508,13 @@ onShow(() => {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+}
+
+.card-list-cell {
+  width: 48%;
+  flex: 0 0 48%;
+  max-width: 48%;
+  box-sizing: border-box;
 }
 
 .section-empty {

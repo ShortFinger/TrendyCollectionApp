@@ -27,18 +27,14 @@
       </view>
     </view>
 
-    <view class="card-title">
-      <text>{{ item.title }}</text>
+    <view class="card-title">{{ item.title }}</view>
+
+    <view class="card-price-row">
+      <text v-if="item.priceText" class="card-price">{{ item.priceText }}</text>
     </view>
 
-    <view v-if="item.priceText" class="card-price-row">
-      <text class="card-price">{{ item.priceText }}</text>
-    </view>
-
-    <view class="card-content">
-      <view class="card-desc">
-        <text>{{ item.desc }}</text>
-      </view>
+    <view class="card-content" :class="{ 'card-content--no-desc': !descVisible }">
+      <view v-if="descVisible" class="card-desc">{{ item.desc }}</view>
 
       <view class="card-footer">
         <text class="card-author">{{ item.author }}</text>
@@ -52,12 +48,16 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 const props = defineProps({
   item: {
     type: Object,
     required: true
   }
 })
+
+const descVisible = computed(() => String(props.item.desc ?? '').trim() !== '')
 
 const emit = defineEmits(['cardTap'])
 
@@ -76,23 +76,30 @@ function onTap() {
 
 <style lang="scss" scoped>
 .card {
-  width: 48%;
+  /* 宽度由外层 .card-list-cell 承担（小程序自定义组件宿主不能依赖 48% 自算宽） */
+  width: 100%;
   margin-bottom: 24rpx;
   border-radius: 24rpx;
   background-color: #ffffff;
   box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .card-image {
   width: 100%;
-  height: 200rpx;
+  height: 280rpx;
   background-color: #f5f5f5;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .card-cover {
   position: relative;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .card-corner-marks {
@@ -121,56 +128,108 @@ function onTap() {
 }
 
 .card-title {
-  padding: 20rpx 20rpx 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 88rpx;
+  max-height: 88rpx;
+  padding: 16rpx 20rpx 0;
   font-size: 26rpx;
   font-weight: 600;
   color: #333;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  word-break: break-word;
 }
 
 .card-price-row {
-  padding: 8rpx 20rpx 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  min-height: 48rpx;
+  max-height: 48rpx;
+  padding: 4rpx 20rpx 0;
+  display: flex;
+  align-items: flex-start;
 }
 
 .card-price {
   font-size: 28rpx;
   font-weight: 600;
   color: #ff4d4f;
+  line-height: 1.2;
 }
 
 .card-content {
-  padding: 12rpx 20rpx 20rpx;
+  flex: 0 0 auto;
+  padding: 12rpx 10rpx 10rpx;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.card-content--no-desc {
+  padding-top: 8rpx;
+}
+
+.card-content--no-desc .card-footer {
+  margin-top: 0;
 }
 
 .card-desc {
+  flex-shrink: 0;
   font-size: 22rpx;
   color: #666;
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  word-break: break-word;
 }
 
 .card-footer {
+  flex-shrink: 0;
   margin-top: 12rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  min-height: 32rpx;
 }
 
 .card-author {
+  flex: 1;
+  min-width: 0;
   font-size: 22rpx;
   color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-meta {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8rpx;
   font-size: 20rpx;
   color: #999;
+  max-width: 55%;
 }
 
 .card-tag {
   padding: 2rpx 8rpx;
   border-radius: 8rpx;
   background-color: #f5f5f5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140rpx;
 }
 
 .card-like {

@@ -52,12 +52,16 @@
       <!-- 卡片区域（来自 index.vue） -->
       <view class="card-list">
         <template v-if="cards.length">
-          <ActivityFeedCard
+          <view
             v-for="(item, index) in cards"
             :key="item.id"
-            :item="item"
-            @cardTap="handleCardClick(index, $event)"
-          />
+            class="card-list-cell"
+          >
+            <ActivityFeedCard
+              :item="item"
+              @cardTap="handleCardClick(index, $event)"
+            />
+          </view>
         </template>
         <view v-else class="section-empty card-list-empty">
           <text class="section-empty-text">暂无活动</text>
@@ -695,6 +699,13 @@ onMounted(() => {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+}
+
+.card-list-cell {
+  width: 48%;
+  flex: 0 0 48%;
+  max-width: 48%;
+  box-sizing: border-box;
 }
 
 </style>
