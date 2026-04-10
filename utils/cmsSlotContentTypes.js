@@ -7,11 +7,13 @@ export const SLOT_TYPE_SEARCH_BAR = 'search_bar'
 export const SLOT_TYPE_BANNER_ROW = 'banner_row'
 export const SLOT_TYPE_ICON_GRID = 'icon_grid'
 export const SLOT_TYPE_ACTIVITY_CARD_GRID = 'activity_card_grid'
+export const SLOT_TYPE_CATEGORY_LIST = 'category_list'
 
 export const CONTENT_TYPE_SEARCH_BAR = 'search_bar'
 export const CONTENT_TYPE_BANNER_SLIDE = 'banner_slide'
 export const CONTENT_TYPE_ICON_ENTRY = 'icon_entry'
 export const CONTENT_TYPE_ACTIVITY_CARD_REF = 'activity_card_ref'
+export const CONTENT_TYPE_CATEGORY_REF = 'category_ref'
 
 /**
  * @param {Array<{ sortOrder?: number }> | undefined} items
