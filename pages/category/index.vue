@@ -35,20 +35,17 @@
         @scrolltolower="onActivityScrollLower"
       >
         <view class="cat-sort-row">
-          <view
-            class="cat-sort-opt"
-            :class="{ 'cat-sort-opt-active': activitySort === 'sales' }"
-            @tap="setActivitySort('sales')"
+          <picker
+            mode="selector"
+            :range="activitySortLabels"
+            :value="activitySortPickerIndex"
+            @change="onActivitySortPickerChange"
           >
-            <text class="cat-sort-opt-text">销量</text>
-          </view>
-          <view
-            class="cat-sort-opt"
-            :class="{ 'cat-sort-opt-active': activitySort === 'visit_total' }"
-            @tap="setActivitySort('visit_total')"
-          >
-            <text class="cat-sort-opt-text">热度</text>
-          </view>
+            <view class="cat-sort-picker-trigger">
+              <text class="cat-sort-picker-text">{{ activitySortDisplayLabel }}</text>
+              <text class="cat-sort-picker-caret">▼</text>
+            </view>
+          </picker>
         </view>
 
         <view v-if="activityListLoading && !activityCards.length" class="cat-activity-hint">
@@ -77,7 +74,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import PageSearchHeader from '@/components/PageSearchHeader.vue'
 import SearchBar from '@/components/SearchBar.vue'
@@ -95,6 +92,12 @@ const CMS_CATEGORY_SLOT_TYPES = [SLOT_TYPE_CATEGORY_LIST]
 
 const ACTIVITY_PAGE_SIZE = 20
 
+const ACTIVITY_SORT_OPTIONS = [
+  { label: '销量', value: 'sales' },
+  { label: '热度', value: 'visit_total' }
+]
+const activitySortLabels = ACTIVITY_SORT_OPTIONS.map((o) => o.label)
+
 const searchPlaceholder = ref('搜索')
 
 const categoryList = ref([])
@@ -102,6 +105,13 @@ const categoryLoadError = ref('')
 const activeCategory = ref('')
 
 const activitySort = ref('sales')
+const activitySortPickerIndex = computed(() => {
+  const i = ACTIVITY_SORT_OPTIONS.findIndex((o) => o.value === activitySort.value)
+  return i >= 0 ? i : 0
+})
+const activitySortDisplayLabel = computed(
+  () => ACTIVITY_SORT_OPTIONS[activitySortPickerIndex.value]?.label ?? '销量'
+)
 const activityCards = ref([])
 const activityPage = ref(1)
 const activityTotal = ref(0)
@@ -161,8 +171,10 @@ function mapActivityItems(raw) {
   return raw.map(activityDisplaySnapshotToCardItem).filter(Boolean)
 }
 
-function setActivitySort(sort) {
-  activitySort.value = sort
+function onActivitySortPickerChange(e) {
+  const idx = Number(e.detail.value)
+  const opt = ACTIVITY_SORT_OPTIONS[idx]
+  if (opt) activitySort.value = opt.value
 }
 
 async function loadActivityFirstPage() {
@@ -389,28 +401,33 @@ onShow(() => {
 .cat-sort-row {
   display: flex;
   flex-direction: row;
-  gap: 16rpx;
+  justify-content: flex-end;
+  align-items: center;
   margin-bottom: 8rpx;
 }
 
-.cat-sort-opt {
-  padding: 12rpx 28rpx;
-  border-radius: 999rpx;
+.cat-sort-picker-trigger {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8rpx;
+  padding: 12rpx 20rpx;
+  border-radius: 12rpx;
   background-color: #f7f8fa;
+  box-sizing: border-box;
+  min-width: 200rpx;
 }
 
-.cat-sort-opt-active {
-  background-color: #111111;
+.cat-sort-picker-text {
+  font-size: 26rpx;
+  color: #333333;
 }
 
-.cat-sort-opt-text {
-  font-size: 24rpx;
-  color: #666666;
-}
-
-.cat-sort-opt-active .cat-sort-opt-text {
-  color: #ffffff;
-  font-weight: 600;
+.cat-sort-picker-caret {
+  font-size: 18rpx;
+  color: #999999;
+  line-height: 1;
 }
 
 .cat-activity-hint {
