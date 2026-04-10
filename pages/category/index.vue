@@ -32,9 +32,44 @@
         refresher-enabled
         :refresher-triggered="categoryRefresherTriggered"
         @refresherrefresh="handleCategoryRefresherRefresh"
+        @scrolltolower="onActivityScrollLower"
       >
-        <CategoryHotSearch :tags="hotTags" />
-        <CategoryProductGrid :products="hotProducts" />
+        <view class="cat-sort-row">
+          <view
+            class="cat-sort-opt"
+            :class="{ 'cat-sort-opt-active': activitySort === 'sales' }"
+            @tap="setActivitySort('sales')"
+          >
+            <text class="cat-sort-opt-text">销量</text>
+          </view>
+          <view
+            class="cat-sort-opt"
+            :class="{ 'cat-sort-opt-active': activitySort === 'visit_total' }"
+            @tap="setActivitySort('visit_total')"
+          >
+            <text class="cat-sort-opt-text">热度</text>
+          </view>
+        </view>
+
+        <view v-if="activityListLoading && !activityCards.length" class="cat-activity-hint">
+          <text class="cat-activity-hint-text">加载中…</text>
+        </view>
+        <view v-else-if="activitiesLoadError" class="cat-activity-hint">
+          <text class="cat-activity-hint-text">{{ activitiesLoadError }}</text>
+        </view>
+        <view v-else class="card-list">
+          <template v-if="activityCards.length">
+            <ActivityFeedCard
+              v-for="(item, index) in activityCards"
+              :key="item.id"
+              :item="item"
+              @cardTap="handleCardClick(index, $event)"
+            />
+          </template>
+          <view v-else class="section-empty card-list-empty">
+            <text class="section-empty-text">暂无活动</text>
+          </view>
+        </view>
         <view class="cat-bottom-safe" />
       </scroll-view>
     </view>
@@ -47,28 +82,174 @@ import { onShow } from '@dcloudio/uni-app'
 import PageSearchHeader from '@/components/PageSearchHeader.vue'
 import SearchBar from '@/components/SearchBar.vue'
 import CategorySidebar from '@/components/category/CategorySidebar.vue'
-import CategoryHotSearch from '@/components/category/CategoryHotSearch.vue'
-import CategoryProductGrid from '@/components/category/CategoryProductGrid.vue'
+import ActivityFeedCard from '@/components/ActivityFeedCard.vue'
 import { fetchPublishedSlotsForPage } from '@/utils/cmsSlotLoader.js'
 import { SLOT_TYPE_CATEGORY_LIST } from '@/utils/cmsSlotContentTypes.js'
 import { buildCategorySidebarItemsFromCmsSlot } from '@/utils/categoryListFromCms.js'
+import { fetchCategoryActivitiesPage } from '@/utils/categoryActivitiesApi.js'
+import { activityDisplaySnapshotToCardItem } from '@/utils/activityDisplayToCardItem.js'
 
 /** 与后台 App 页 `page_key`、槽位 `category_list` 一致 */
 const CMS_CATEGORY_PAGE_KEY = 'category'
 const CMS_CATEGORY_SLOT_TYPES = [SLOT_TYPE_CATEGORY_LIST]
 
-const hotTags = ['波士顿龙虾', '红颜草莓', '有机西红柿']
-
-const hotProducts = [
-  { id: 1, title: '泰国金枕头榴莲A级 2-3kg', price: '199.0' },
-  { id: 2, title: '澳洲冷鲜西冷牛排 200g', price: '58.0' }
-]
+const ACTIVITY_PAGE_SIZE = 20
 
 const searchPlaceholder = ref('搜索')
 
 const categoryList = ref([])
 const categoryLoadError = ref('')
 const activeCategory = ref('')
+
+const activitySort = ref('sales')
+const activityCards = ref([])
+const activityPage = ref(1)
+const activityTotal = ref(0)
+const activityHasMore = ref(true)
+const activityListLoading = ref(false)
+const activityListLoadingMore = ref(false)
+const activitiesLoadError = ref('')
+const activityFetchGen = ref(0)
+
+const TAB_PATHS = [
+  '/pages/index/index',
+  '/pages/category/index',
+  '/pages/ichibanKuji/index',
+  '/pages/mine/index'
+]
+
+function pathOnly(url) {
+  if (!url || typeof url !== 'string') return ''
+  const q = url.indexOf('?')
+  return q === -1 ? url : url.slice(0, q)
+}
+
+function withLeadingSlash(path) {
+  if (!path) return ''
+  return path[0] === '/' ? path : `/${path}`
+}
+
+function openInternalUrl(url) {
+  if (!url) return
+  const path = withLeadingSlash(pathOnly(url))
+  const fullUrl = url.includes('?') ? path + url.slice(url.indexOf('?')) : path
+  const isTab = TAB_PATHS.includes(path)
+  if (!isTab) {
+    uni.navigateTo({ url: fullUrl })
+    return
+  }
+  if (fullUrl.includes('?')) {
+    uni.reLaunch({ url: fullUrl })
+    return
+  }
+  uni.switchTab({ url: path })
+}
+
+function handleJump(jumpType, jumpUrl) {
+  if (!jumpUrl || jumpType === 'none') return
+  if (jumpType === 'h5') {
+    uni.showToast({
+      title: 'H5 跳转待接入',
+      icon: 'none'
+    })
+    return
+  }
+  openInternalUrl(jumpUrl)
+}
+
+function mapActivityItems(raw) {
+  return raw.map(activityDisplaySnapshotToCardItem).filter(Boolean)
+}
+
+function setActivitySort(sort) {
+  activitySort.value = sort
+}
+
+async function loadActivityFirstPage() {
+  const cat = activeCategory.value
+  if (!cat) {
+    activityCards.value = []
+    activityHasMore.value = false
+    activitiesLoadError.value = ''
+    return
+  }
+  const gen = ++activityFetchGen.value
+  activityListLoading.value = true
+  activitiesLoadError.value = ''
+  try {
+    const res = await fetchCategoryActivitiesPage({
+      categoryId: cat,
+      page: 1,
+      pageSize: ACTIVITY_PAGE_SIZE,
+      channel: 'mp-weixin',
+      appVersion: '1.0.0',
+      sort: activitySort.value
+    })
+    if (gen !== activityFetchGen.value) return
+    activityTotal.value = res.total
+    activityPage.value = 1
+    activityCards.value = mapActivityItems(res.items)
+    const loaded = activityCards.value.length
+    activityHasMore.value =
+      loaded < activityTotal.value && res.items.length >= ACTIVITY_PAGE_SIZE
+  } catch {
+    if (gen !== activityFetchGen.value) return
+    activityCards.value = []
+    activityHasMore.value = false
+    activitiesLoadError.value = '加载失败'
+    uni.showToast({ title: '活动加载失败', icon: 'none' })
+  } finally {
+    if (gen === activityFetchGen.value) {
+      activityListLoading.value = false
+    }
+  }
+}
+
+async function loadActivityNextPage() {
+  const cat = activeCategory.value
+  if (
+    !cat ||
+    !activityHasMore.value ||
+    activityListLoading.value ||
+    activityListLoadingMore.value
+  ) {
+    return
+  }
+  const gen = activityFetchGen.value
+  const nextPage = activityPage.value + 1
+  activityListLoadingMore.value = true
+  try {
+    const res = await fetchCategoryActivitiesPage({
+      categoryId: cat,
+      page: nextPage,
+      pageSize: ACTIVITY_PAGE_SIZE,
+      channel: 'mp-weixin',
+      appVersion: '1.0.0',
+      sort: activitySort.value
+    })
+    if (gen !== activityFetchGen.value) return
+    activityPage.value = nextPage
+    const more = mapActivityItems(res.items)
+    activityCards.value = activityCards.value.concat(more)
+    const loaded = activityCards.value.length
+    activityHasMore.value =
+      loaded < activityTotal.value && res.items.length >= ACTIVITY_PAGE_SIZE
+  } catch {
+    uni.showToast({ title: '加载更多失败', icon: 'none' })
+  } finally {
+    activityListLoadingMore.value = false
+  }
+}
+
+function onActivityScrollLower() {
+  loadActivityNextPage()
+}
+
+function handleCardClick(_index, item) {
+  if (item?.jumpUrl) {
+    handleJump(item.jumpType || 'page', item.jumpUrl)
+  }
+}
 
 function syncActiveAfterListChange(list) {
   if (!list.length) {
@@ -83,6 +264,14 @@ function syncActiveAfterListChange(list) {
 
 watch(categoryList, (list) => {
   syncActiveAfterListChange(list)
+})
+
+watch(activeCategory, () => {
+  loadActivityFirstPage()
+})
+
+watch(activitySort, () => {
+  loadActivityFirstPage()
 })
 
 function setActiveCategory(key) {
@@ -122,6 +311,7 @@ async function handleCategoryRefresherRefresh() {
   categoryRefresherTriggered.value = true
   try {
     await loadCategoryCms()
+    await loadActivityFirstPage()
   } finally {
     categoryRefresherTriggered.value = false
   }
@@ -194,6 +384,65 @@ onShow(() => {
   border-top-left-radius: 24rpx;
   padding: 16rpx 24rpx 24rpx;
   box-sizing: border-box;
+}
+
+.cat-sort-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.cat-sort-opt {
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background-color: #f7f8fa;
+}
+
+.cat-sort-opt-active {
+  background-color: #111111;
+}
+
+.cat-sort-opt-text {
+  font-size: 24rpx;
+  color: #666666;
+}
+
+.cat-sort-opt-active .cat-sort-opt-text {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cat-activity-hint {
+  padding: 48rpx 16rpx;
+  text-align: center;
+}
+
+.cat-activity-hint-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.card-list {
+  margin-top: 16rpx;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.section-empty {
+  width: 100%;
+  padding: 48rpx 16rpx;
+  text-align: center;
+}
+
+.section-empty-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.card-list-empty {
+  margin-top: 16rpx;
 }
 
 .cat-bottom-safe {
