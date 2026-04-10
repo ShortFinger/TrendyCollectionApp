@@ -439,7 +439,7 @@ onShow(() => {
   border-radius: 12rpx;
   background-color: #f7f8fa;
   box-sizing: border-box;
-  min-width: 132rpx;
+  min-width: 102rpx;
 }
 
 .cat-sort-picker-text {
@@ -463,7 +463,7 @@ onShow(() => {
   right: 0;
   top: 100%;
   margin-top: 8rpx;
-  min-width: 132rpx;
+  min-width: 102rpx;
   padding: 8rpx 0;
   background-color: #ffffff;
   border-radius: 12rpx;
@@ -481,7 +481,7 @@ onShow(() => {
 }
 
 .cat-sort-dropdown-item-text {
-  font-size: 28rpx;
+  font-size: 26rpx;
   color: #333333;
 }
 
