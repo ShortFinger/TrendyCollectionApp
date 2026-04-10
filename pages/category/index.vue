@@ -25,7 +25,14 @@
         />
       </view>
 
-      <scroll-view class="cat-col-right" scroll-y :show-scrollbar="false">
+      <scroll-view
+        class="cat-col-right"
+        scroll-y
+        :show-scrollbar="false"
+        refresher-enabled
+        :refresher-triggered="categoryRefresherTriggered"
+        @refresherrefresh="handleCategoryRefresherRefresh"
+      >
         <CategoryHotSearch :tags="hotTags" />
         <CategoryProductGrid :products="hotProducts" />
         <view class="cat-bottom-safe" />
@@ -106,6 +113,17 @@ async function loadCategoryCms() {
   } catch {
     categoryList.value = []
     uni.showToast({ title: '分类加载失败', icon: 'none' })
+  }
+}
+
+const categoryRefresherTriggered = ref(false)
+
+async function handleCategoryRefresherRefresh() {
+  categoryRefresherTriggered.value = true
+  try {
+    await loadCategoryCms()
+  } finally {
+    categoryRefresherTriggered.value = false
   }
 }
 
