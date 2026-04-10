@@ -8,6 +8,7 @@ import {
   SLOT_TYPE_ACTIVITY_CARD_GRID,
 } from './cmsSlotContentTypes.js'
 import { coercePayloadForRender, isRenderablePayload } from './cmsPayloadShape.js'
+import { formatMoneyPrice, buildActivityJump } from './activityCardCommon.js'
 
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
@@ -38,32 +39,6 @@ function pickString(v) {
   if (v == null) return ''
   const s = String(v).trim()
   return s
-}
-
-function buildJumpUrl(activityId, activityType, payloadJumpType, payloadJumpUrl) {
-  const jt = pickString(payloadJumpType) || 'page'
-  const ju = pickString(payloadJumpUrl)
-  if (ju) return { jumpType: jt, jumpUrl: ju }
-  const typeStr = pickString(activityType)
-  if (typeStr === 'ICHIBAN' || typeStr === 'UNLIMITED') {
-    return {
-      jumpType: 'page',
-      jumpUrl: `/pages/ichibanKuji/index?activityId=${encodeURIComponent(activityId)}`
-    }
-  }
-  return {
-    jumpType: 'page',
-    jumpUrl: `/pages/ichibanKuji/index?activityId=${encodeURIComponent(activityId)}`
-  }
-}
-
-function formatMoneyPrice(price) {
-  if (price == null || price === '') return ''
-  const n = Number(price)
-  if (Number.isFinite(n)) {
-    return `¥${n}`
-  }
-  return `¥${price}`
 }
 
 /**
@@ -104,7 +79,7 @@ export function mergeActivityCardItems(slots) {
     const likes = Number(payload.likes)
     const likesNum = Number.isFinite(likes) ? likes : 0
 
-    const { jumpType, jumpUrl } = buildJumpUrl(
+    const { jumpType, jumpUrl } = buildActivityJump(
       activityId,
       act.activityType,
       payload.jumpType,
@@ -112,6 +87,15 @@ export function mergeActivityCardItems(slots) {
     )
 
     const priceText = formatMoneyPrice(act.moneyPrice)
+
+    const lowerLeftCornerMark =
+      pickString(payload.lowerLeftCornerMark) || pickString(act.lowerLeftCornerMark)
+    const upperLeftCornerMark =
+      pickString(payload.upperLeftCornerMark) || pickString(act.upperLeftCornerMark)
+    const upperRightCornerMark =
+      pickString(payload.upperRightCornerMark) || pickString(act.upperRightCornerMark)
+    const lowerRightCornerMark =
+      pickString(payload.lowerRightCornerMark) || pickString(act.lowerRightCornerMark)
 
     out.push({
       id: activityId,
@@ -121,14 +105,19 @@ export function mergeActivityCardItems(slots) {
       tag,
       likes: likesNum,
       coverUrl,
+      squareThumb: coverUrl,
       priceText,
       jumpType,
       jumpUrl,
+      lowerLeftCornerMark,
+      upperLeftCornerMark,
+      lowerRightCornerMark,
+      upperRightCornerMark,
       cornerMarks: {
-        lowerLeft: pickString(payload.lowerLeftCornerMark) || pickString(act.lowerLeftCornerMark),
-        upperLeft: pickString(payload.upperLeftCornerMark) || pickString(act.upperLeftCornerMark),
-        upperRight: pickString(payload.upperRightCornerMark) || pickString(act.upperRightCornerMark),
-        lowerRight: pickString(payload.lowerRightCornerMark) || pickString(act.lowerRightCornerMark)
+        lowerLeft: lowerLeftCornerMark,
+        upperLeft: upperLeftCornerMark,
+        upperRight: upperRightCornerMark,
+        lowerRight: lowerRightCornerMark
       }
     })
   }
