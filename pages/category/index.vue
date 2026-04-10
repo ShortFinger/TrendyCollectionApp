@@ -33,19 +33,29 @@
         :refresher-triggered="categoryRefresherTriggered"
         @refresherrefresh="handleCategoryRefresherRefresh"
         @scrolltolower="onActivityScrollLower"
+        @scroll="closeSortDropdown"
       >
         <view class="cat-sort-row">
-          <picker
-            mode="selector"
-            :range="activitySortLabels"
-            :value="activitySortPickerIndex"
-            @change="onActivitySortPickerChange"
-          >
-            <view class="cat-sort-picker-trigger">
+          <view class="cat-sort-wrap">
+            <view class="cat-sort-picker-trigger" @tap.stop="toggleSortDropdown">
               <text class="cat-sort-picker-text">{{ activitySortDisplayLabel }}</text>
-              <text class="cat-sort-picker-caret">▼</text>
+              <text
+                class="cat-sort-picker-caret"
+                :class="{ 'cat-sort-picker-caret-open': sortDropdownOpen }"
+              >▼</text>
             </view>
-          </picker>
+            <view v-if="sortDropdownOpen" class="cat-sort-dropdown" @tap.stop>
+              <view
+                v-for="opt in ACTIVITY_SORT_OPTIONS"
+                :key="opt.value"
+                class="cat-sort-dropdown-item"
+                :class="{ 'cat-sort-dropdown-item-active': activitySort === opt.value }"
+                @tap="selectActivitySort(opt.value)"
+              >
+                <text class="cat-sort-dropdown-item-text">{{ opt.label }}</text>
+              </view>
+            </view>
+          </view>
         </view>
 
         <view v-if="activityListLoading && !activityCards.length" class="cat-activity-hint">
@@ -96,7 +106,6 @@ const ACTIVITY_SORT_OPTIONS = [
   { label: '销量', value: 'sales' },
   { label: '热度', value: 'visit_total' }
 ]
-const activitySortLabels = ACTIVITY_SORT_OPTIONS.map((o) => o.label)
 
 const searchPlaceholder = ref('搜索')
 
@@ -105,13 +114,11 @@ const categoryLoadError = ref('')
 const activeCategory = ref('')
 
 const activitySort = ref('sales')
-const activitySortPickerIndex = computed(() => {
-  const i = ACTIVITY_SORT_OPTIONS.findIndex((o) => o.value === activitySort.value)
-  return i >= 0 ? i : 0
+const sortDropdownOpen = ref(false)
+const activitySortDisplayLabel = computed(() => {
+  const opt = ACTIVITY_SORT_OPTIONS.find((o) => o.value === activitySort.value)
+  return opt?.label ?? '销量'
 })
-const activitySortDisplayLabel = computed(
-  () => ACTIVITY_SORT_OPTIONS[activitySortPickerIndex.value]?.label ?? '销量'
-)
 const activityCards = ref([])
 const activityPage = ref(1)
 const activityTotal = ref(0)
@@ -171,10 +178,17 @@ function mapActivityItems(raw) {
   return raw.map(activityDisplaySnapshotToCardItem).filter(Boolean)
 }
 
-function onActivitySortPickerChange(e) {
-  const idx = Number(e.detail.value)
-  const opt = ACTIVITY_SORT_OPTIONS[idx]
-  if (opt) activitySort.value = opt.value
+function closeSortDropdown() {
+  sortDropdownOpen.value = false
+}
+
+function toggleSortDropdown() {
+  sortDropdownOpen.value = !sortDropdownOpen.value
+}
+
+function selectActivitySort(value) {
+  activitySort.value = value
+  sortDropdownOpen.value = false
 }
 
 async function loadActivityFirstPage() {
@@ -279,6 +293,7 @@ watch(categoryList, (list) => {
 })
 
 watch(activeCategory, () => {
+  closeSortDropdown()
   loadActivityFirstPage()
 })
 
@@ -402,8 +417,16 @@ onShow(() => {
   display: flex;
   flex-direction: row;
   justify-content: flex-end;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 8rpx;
+}
+
+.cat-sort-wrap {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .cat-sort-picker-trigger {
@@ -428,6 +451,43 @@ onShow(() => {
   font-size: 18rpx;
   color: #999999;
   line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.cat-sort-picker-caret-open {
+  transform: rotate(180deg);
+}
+
+.cat-sort-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 8rpx;
+  min-width: 200rpx;
+  padding: 8rpx 0;
+  background-color: #ffffff;
+  border-radius: 12rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+  border: 1rpx solid #eeeeee;
+}
+
+.cat-sort-dropdown-item {
+  padding: 20rpx 28rpx;
+}
+
+.cat-sort-dropdown-item-active {
+  background-color: #f7f8fa;
+}
+
+.cat-sort-dropdown-item-text {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.cat-sort-dropdown-item-active .cat-sort-dropdown-item-text {
+  color: #111111;
+  font-weight: 600;
 }
 
 .cat-activity-hint {
