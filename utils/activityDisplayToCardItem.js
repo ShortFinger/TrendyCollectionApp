@@ -18,7 +18,8 @@ export function activityDisplaySnapshotToCardItem(act) {
   if (!act || typeof act !== 'object') return null
   const id = pickString(act.id)
   if (!id) return null
-  if (pickString(act.status) !== 'ON_SHELF') return null
+  const st = pickString(act.status)
+  if (st && st !== 'ON_SHELF') return null
 
   const squareThumb =
     pickString(act.squareThumb) || pickString(act.longThumb) || ''
