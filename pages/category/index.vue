@@ -434,12 +434,12 @@ onShow(() => {
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-  gap: 8rpx;
-  padding: 12rpx 20rpx;
+  gap: 6rpx;
+  padding: 10rpx 14rpx;
   border-radius: 12rpx;
   background-color: #f7f8fa;
   box-sizing: border-box;
-  min-width: 200rpx;
+  min-width: 132rpx;
 }
 
 .cat-sort-picker-text {
@@ -463,7 +463,7 @@ onShow(() => {
   right: 0;
   top: 100%;
   margin-top: 8rpx;
-  min-width: 200rpx;
+  min-width: 132rpx;
   padding: 8rpx 0;
   background-color: #ffffff;
   border-radius: 12rpx;
