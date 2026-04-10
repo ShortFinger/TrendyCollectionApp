@@ -1,5 +1,5 @@
 {
-  "pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+  "pages": [
     {
       "path": "pages/index/index",
       "style": {
@@ -12,6 +12,12 @@
       "style": {
         "navigationStyle": "custom",
         "navigationBarTitleText": "分类"
+      }
+    },
+    {
+      "path": "pages/ichibanKuji/index",
+      "style": {
+        "navigationBarTitleText": "抽盒机"
       }
     },
     {
@@ -33,12 +39,6 @@
       }
     },
     {
-      "path": "pages/ichibanKuji/index",
-      "style": {
-        "navigationBarTitleText": "抽盒机"
-      }
-    },
-    {
       "path": "pages/phone-bind/index",
       "style": {
         "navigationBarTitleText": "绑定手机号"
@@ -50,5 +50,37 @@
     "navigationBarTitleText": "Trendy Collection",
     "navigationBarBackgroundColor": "#F8F8F8",
     "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "black",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/category/index",
+        "text": "分类",
+        "iconPath": "static/tab/category.png",
+        "selectedIconPath": "static/tab/category-active.png"
+      },
+      {
+        "pagePath": "pages/ichibanKuji/index",
+        "text": "赏柜",
+        "iconPath": "static/tab/box.png",
+        "selectedIconPath": "static/tab/box-active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "static/tab/mine.png",
+        "selectedIconPath": "static/tab/mine-active.png"
+      }
+    ]
   }
 }

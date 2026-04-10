@@ -180,9 +180,11 @@ const goBack = () => {
 
 <style lang="scss">
 .blindbox-page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #f7f8fa;
-  padding-bottom: 120rpx;
+  box-sizing: border-box;
 }
 
 .nav-bar {
@@ -225,7 +227,8 @@ const goBack = () => {
 }
 
 .blindbox-scroll {
-  height: calc(100vh - 88rpx - 120rpx);
+  flex: 1;
+  min-height: 0;
   padding: 0 24rpx 24rpx;
   box-sizing: border-box;
 }
@@ -486,7 +489,7 @@ const goBack = () => {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--window-bottom, 100rpx);
   height: 100rpx;
   padding-bottom: env(safe-area-inset-bottom);
   background-color: #ffffff;

@@ -119,15 +119,11 @@
       <!-- 底部预留空间 -->
       <view class="bottom-safe" />
     </scroll-view>
-
-    <!-- 底部 TabBar -->
-    <TabBar active="mine" />
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import TabBar from '../../components/TabBar.vue'
 import { state as userState } from '../../store/user.js'
 import { updateProfile, requirePhone, fetchMe } from '../../utils/auth.js'
 import { getToken } from '../../utils/request.js'
@@ -232,7 +228,10 @@ function onFuncTap(key) {
 .mine-page {
   background-color: #f7f8fa;
   min-height: 100vh;
-  padding-bottom: 120rpx;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* 顶部渐变区域 */
@@ -426,10 +425,11 @@ function onFuncTap(key) {
 
 /* 滚动内容 */
 .mine-scroll {
+  flex: 1;
+  min-height: 0;
   margin-top: -40rpx;
   padding: 0 24rpx 24rpx;
   box-sizing: border-box;
-  height: calc(100vh - 44px - 120rpx);
 }
 
 .asset-card {
@@ -572,6 +572,6 @@ function onFuncTap(key) {
 }
 
 .bottom-safe {
-  height: 140rpx;
+  height: 32rpx;
 }
 </style>
