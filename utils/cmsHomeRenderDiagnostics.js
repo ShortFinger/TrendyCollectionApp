@@ -83,6 +83,25 @@ export function diagnoseActivityCardSkips(targetSlot) {
 }
 
 /**
+ * @param {ReturnType<typeof diagnoseActivityCardSkips>} stats
+ */
+function summarizeActivitySkipStats(stats) {
+  const parts = []
+  if (stats.wrongContentType)
+    parts.push(`wrongContentType=${stats.wrongContentType}`)
+  if (stats.nullPayload) parts.push(`nullPayload=${stats.nullPayload}`)
+  if (stats.badPayloadShape) parts.push(`badPayloadShape=${stats.badPayloadShape}`)
+  if (stats.missingActivityId)
+    parts.push(`missingActivityId=${stats.missingActivityId}`)
+  if (stats.notOnShelfOrNoDisplay)
+    parts.push(
+      `notOnShelfOrNoDisplay=${stats.notOnShelfOrNoDisplay} (need activity_card_ref + payload.activityId + activityDisplay.status=ON_SHELF)`
+    )
+  if (stats.wouldRender) parts.push(`wouldRender=${stats.wouldRender}`)
+  return parts.join('; ')
+}
+
+/**
  * @param {Record<string, unknown>} slots
  * @param {number} iconListLen
  * @param {number} cardsLen
@@ -103,9 +122,11 @@ export function logCmsHomeRenderDiagnostics(slots, iconListLen, cardsLen) {
     target.items.length > 0 &&
     cardsLen === 0
   ) {
+    const skips = diagnoseActivityCardSkips(target)
+    const hint = summarizeActivitySkipStats(skips)
     console.warn(
-      '[cms-home] activity slot has items but cards is empty',
-      diagnoseActivityCardSkips(target)
+      `[cms-home] activity slot has items but cards is empty — ${hint}`,
+      skips
     )
   }
 }
