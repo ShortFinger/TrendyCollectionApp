@@ -51,7 +51,10 @@
 
       <!-- 卡片区域（来自 index.vue） -->
       <view class="card-list">
-        <template v-if="cards.length">
+        <view v-if="homeCmsLoading" class="home-card-hint">
+          <text class="home-card-hint-text">加载中…</text>
+        </view>
+        <template v-else-if="cards.length">
           <view
             v-for="(item, index) in cards"
             :key="item.id"
@@ -109,6 +112,8 @@ const searchPlaceholder = ref('搜索')
 const bannerData = ref(emptyBanner())
 const iconList = ref([])
 const cards = ref([])
+/** 首页 CMS 拉取完成前不展示「暂无活动」，避免请求中空列表误显 */
+const homeCmsLoading = ref(true)
 const payloadErrorDedupKeys = new Set()
 const payloadReportTraceCtx = ref({ requestId: '', traceId: '' })
 
@@ -344,6 +349,7 @@ const handleCategoryClick = (item) => {
 }
 
 const loadHomeData = async () => {
+  homeCmsLoading.value = true
   try {
     resetHomeSections()
     payloadErrorDedupKeys.clear()
@@ -372,6 +378,8 @@ const loadHomeData = async () => {
     }
   } catch (error) {
     uni.showToast({ title: '首页数据加载失败', icon: 'none' })
+  } finally {
+    homeCmsLoading.value = false
   }
 }
 
@@ -544,6 +552,20 @@ onMounted(() => {
   width: 100%;
   min-height: 160rpx;
   margin-top: 0;
+}
+
+.home-card-hint {
+  width: 100%;
+  padding: 48rpx 24rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.home-card-hint-text {
+  font-size: 26rpx;
+  color: #999999;
 }
 
 /* 图标宫格 */

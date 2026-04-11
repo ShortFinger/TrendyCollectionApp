@@ -14,6 +14,9 @@
         <view v-if="categoryLoadError" class="cat-side-empty">
           <text class="cat-side-empty-text">{{ categoryLoadError }}</text>
         </view>
+        <view v-else-if="categoryCmsLoading" class="cat-side-empty">
+          <text class="cat-side-empty-text">加载中…</text>
+        </view>
         <view v-else-if="!categoryList.length" class="cat-side-empty">
           <text class="cat-side-empty-text">暂无分类</text>
         </view>
@@ -35,7 +38,7 @@
         @scrolltolower="onActivityScrollLower"
         @scroll="closeSortDropdown"
       >
-        <view class="cat-sort-row">
+        <view v-if="!categoryCmsLoading" class="cat-sort-row">
           <view class="cat-sort-wrap">
             <view class="cat-sort-picker-trigger" @tap.stop="toggleSortDropdown">
               <text class="cat-sort-picker-text">{{ activitySortDisplayLabel }}</text>
@@ -58,7 +61,10 @@
           </view>
         </view>
 
-        <view v-if="activityListLoading && !activityCards.length" class="cat-activity-hint">
+        <view v-if="categoryCmsLoading" class="cat-activity-hint">
+          <text class="cat-activity-hint-text">加载中…</text>
+        </view>
+        <view v-else-if="activityListLoading && !activityCards.length" class="cat-activity-hint">
           <text class="cat-activity-hint-text">加载中…</text>
         </view>
         <view v-else-if="activitiesLoadError" class="cat-activity-hint">
@@ -115,6 +121,8 @@ const searchPlaceholder = ref('搜索')
 
 const categoryList = ref([])
 const categoryLoadError = ref('')
+/** 分类页 CMS 槽位拉取完成前不展示「暂无分类」，右侧不同步误显「暂无活动」 */
+const categoryCmsLoading = ref(true)
 const activeCategory = ref('')
 
 const activitySort = ref('sales')
@@ -310,6 +318,7 @@ function setActiveCategory(key) {
 }
 
 async function loadCategoryCms() {
+  categoryCmsLoading.value = true
   categoryLoadError.value = ''
   try {
     const { slots, errors, pageNotFound } = await fetchPublishedSlotsForPage({
@@ -333,6 +342,8 @@ async function loadCategoryCms() {
   } catch {
     categoryList.value = []
     uni.showToast({ title: '分类加载失败', icon: 'none' })
+  } finally {
+    categoryCmsLoading.value = false
   }
 }
 
