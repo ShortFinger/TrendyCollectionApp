@@ -28,7 +28,12 @@
     </view>
 
     <view class="card-title-row">
-      <text v-if="item.tag" class="card-tag">{{ item.tag }}</text>
+      <text
+        v-if="activityTypeCnTrimmed"
+        class="card-activity-type-cn"
+        :class="{ 'card-activity-type-cn--shimmer': typeCnLabelVisual.useShimmerClass }"
+        :style="typeCnLabelVisual.inlineStyle"
+      >{{ activityTypeCnTrimmed }}</text>
       <view class="card-title-text-wrap">
         <text class="card-title-measure">{{ item.title }}</text>
         <view class="card-title-viewport">
@@ -50,7 +55,10 @@
 
     <view class="card-price-row">
       <text v-if="item.priceText" class="card-price">{{ item.priceText }}</text>
-      <text class="card-like">{{ formatLikes(item.likes) }}</text>
+      <view class="card-price-meta">
+        <text v-if="item.tag" class="card-tag">{{ item.tag }}</text>
+        <text v-if="showLikeCount" class="card-like">{{ formatLikes(item.likes) }}</text>
+      </view>
     </view>
 
     <view class="card-content" :class="{ 'card-content--no-desc': !descVisible }">
@@ -61,6 +69,10 @@
 
 <script setup>
 import { computed, ref, watch, nextTick, onMounted, getCurrentInstance } from 'vue'
+import {
+  pickActivityTypeCnLabelSeed,
+  resolveActivityTypeCnLabelStyleFromSeed
+} from '../utils/activityTypeCnLabelStyle.js'
 
 const props = defineProps({
   item: {
@@ -70,6 +82,19 @@ const props = defineProps({
 })
 
 const descVisible = computed(() => String(props.item.desc ?? '').trim() !== '')
+
+const activityTypeCnTrimmed = computed(() => String(props.item.activityTypeCn ?? '').trim())
+
+const typeCnLabelSeed = computed(() => pickActivityTypeCnLabelSeed(props.item))
+
+const typeCnLabelVisual = computed(() =>
+  resolveActivityTypeCnLabelStyleFromSeed(typeCnLabelSeed.value)
+)
+
+const showLikeCount = computed(() => {
+  const n = Number(props.item.likes) || 0
+  return n >= 100
+})
 
 const titleMarqueeChunk = computed(
   () => `${String(props.item.title ?? '')}\u3000\u3000`
@@ -108,7 +133,7 @@ function measureTitleMarquee() {
 onMounted(measureTitleMarquee)
 
 watch(
-  () => [props.item.title, props.item.tag],
+  () => [props.item.title, activityTypeCnTrimmed.value],
   () => measureTitleMarquee(),
   { flush: 'post' }
 )
@@ -285,6 +310,14 @@ function onTap() {
   line-height: 1.2;
 }
 
+.card-price-meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 10rpx;
+}
+
 .card-content {
   flex: 0 0 auto;
   padding: 12rpx 10rpx 10rpx;
@@ -324,8 +357,44 @@ function onTap() {
   max-width: 140rpx;
 }
 
+.card-activity-type-cn {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 2rpx 8rpx;
+  border-radius: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140rpx;
+  line-height: 1.35;
+}
+
+.card-activity-type-cn--shimmer {
+  background-size: 200% 200%;
+  animation-name: card-activity-type-cn-shimmer;
+  animation-duration: 12s;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes card-activity-type-cn-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-activity-type-cn--shimmer {
+    animation: none;
+  }
+}
+
 .card-like {
-  margin-left: auto;
   font-size: 20rpx;
   color: #999;
   line-height: 1.2;
