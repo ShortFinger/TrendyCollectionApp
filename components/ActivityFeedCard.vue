@@ -89,7 +89,8 @@ function onTap() {
 
 .card-image {
   width: 100%;
-  height: 280rpx;
+  height: auto;
+  aspect-ratio: 1 / 1;
   background-color: #f5f5f5;
   background-size: cover;
   background-position: center;
