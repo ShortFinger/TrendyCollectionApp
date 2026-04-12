@@ -27,22 +27,20 @@
       </view>
     </view>
 
-    <view class="card-title">{{ item.title }}</view>
+    <view class="card-title-row">
+      <text v-if="item.tag" class="card-tag">{{ item.tag }}</text>
+      <view class="card-title-text-wrap">
+        {{ item.title }}
+      </view>
+    </view>
 
     <view class="card-price-row">
       <text v-if="item.priceText" class="card-price">{{ item.priceText }}</text>
+      <text class="card-like">{{ formatLikes(item.likes) }}</text>
     </view>
 
     <view class="card-content" :class="{ 'card-content--no-desc': !descVisible }">
       <view v-if="descVisible" class="card-desc">{{ item.desc }}</view>
-
-      <view class="card-footer">
-        <text class="card-author">{{ item.author }}</text>
-        <view class="card-meta">
-          <text class="card-tag">{{ item.tag }}</text>
-          <text class="card-like">{{ formatLikes(item.likes) }}</text>
-        </view>
-      </view>
     </view>
   </view>
 </template>
@@ -128,12 +126,20 @@ function onTap() {
   right: 8rpx;
 }
 
-.card-title {
+.card-title-row {
   flex-shrink: 0;
   box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  padding: 16rpx 20rpx 0;
+}
+
+.card-title-text-wrap {
+  flex: 1;
+  min-width: 0;
   min-height: 88rpx;
   max-height: 88rpx;
-  padding: 16rpx 20rpx 0;
   font-size: 26rpx;
   font-weight: 600;
   color: #333;
@@ -154,7 +160,7 @@ function onTap() {
   max-height: 48rpx;
   padding: 4rpx 20rpx 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .card-price {
@@ -176,10 +182,6 @@ function onTap() {
   padding-top: 8rpx;
 }
 
-.card-content--no-desc .card-footer {
-  margin-top: 0;
-}
-
 .card-desc {
   flex-shrink: 0;
   font-size: 22rpx;
@@ -194,36 +196,10 @@ function onTap() {
   word-break: break-word;
 }
 
-.card-footer {
+.card-tag {
   flex-shrink: 0;
-  margin-top: 12rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  min-height: 32rpx;
-}
-
-.card-author {
-  flex: 1;
-  min-width: 0;
-  font-size: 22rpx;
-  color: #999;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.card-meta {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
   font-size: 20rpx;
   color: #999;
-  max-width: 55%;
-}
-
-.card-tag {
   padding: 2rpx 8rpx;
   border-radius: 8rpx;
   background-color: #f5f5f5;
@@ -234,6 +210,9 @@ function onTap() {
 }
 
 .card-like {
-  margin-left: 8rpx;
+  margin-left: auto;
+  font-size: 20rpx;
+  color: #999;
+  line-height: 1.2;
 }
 </style>
