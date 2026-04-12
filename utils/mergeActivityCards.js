@@ -8,7 +8,7 @@ import {
   SLOT_TYPE_ACTIVITY_CARD_GRID,
 } from './cmsSlotContentTypes.js'
 import { coercePayloadForRender, isRenderablePayload } from './cmsPayloadShape.js'
-import { formatMoneyPrice, buildActivityJump } from './activityCardCommon.js'
+import { formatMoneyPrice, buildActivityJump, pickActivityTypeCn } from './activityCardCommon.js'
 
 const CONTENT_TYPE = CONTENT_TYPE_ACTIVITY_CARD_REF
 const SLOT_TYPE = SLOT_TYPE_ACTIVITY_CARD_GRID
@@ -43,7 +43,7 @@ function pickString(v) {
 
 /**
  * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number, activityDisplay?: Object }> }>} slots 已发布页 slots（按 slotType 为键）
- * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string }>}
+ * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string, activityTypeCn?: string }>}
  */
 export function mergeActivityCardItems(slots) {
   const targetSlot = resolveActivityCardTargetSlot(slots)
@@ -107,6 +107,7 @@ export function mergeActivityCardItems(slots) {
       coverUrl,
       squareThumb: coverUrl,
       priceText,
+      activityTypeCn: pickActivityTypeCn(act),
       jumpType,
       jumpUrl,
       lowerLeftCornerMark,

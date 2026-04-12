@@ -1,4 +1,4 @@
-import { formatMoneyPrice, buildActivityJump } from './activityCardCommon.js'
+import { formatMoneyPrice, buildActivityJump, pickActivityTypeCn } from './activityCardCommon.js'
 
 function pickString(v) {
   if (v == null) return ''
@@ -33,6 +33,7 @@ export function activityDisplaySnapshotToCardItem(act) {
   return {
     id,
     title: pickString(act.title),
+    activityTypeCn: pickActivityTypeCn(act),
     squareThumb,
     lowerLeftCornerMark: pickString(act.lowerLeftCornerMark),
     upperLeftCornerMark: pickString(act.upperLeftCornerMark),
