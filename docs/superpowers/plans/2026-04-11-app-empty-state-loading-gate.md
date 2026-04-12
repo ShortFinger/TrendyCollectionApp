@@ -26,7 +26,7 @@
 **Files:**
 - Modify: `pages/index/index.vue`（`<template>` 卡片区约 52–69 行；`loadHomeData` / `resetHomeSections` 附近）
 
-- [ ] **Step 1: 增加状态并在加载周期内维护**
+- [x] **Step 1: 增加状态并在加载周期内维护**
 
 在 `ref` 区域增加 `homeCmsLoading`，初值 `true`（避免首屏在 `onMounted` 前短暂闪空，若首屏由 `loadHomeData` 统一驱动，也可初值 `false` 并在 `loadHomeData` 第一行设为 `true`——二选一，须与「首帧不闪现暂无」一致）。
 
@@ -34,7 +34,7 @@
 - 进入时设 `homeCmsLoading = true`（若已在函数开头 `resetHomeSections`，顺序为：先设 loading，再 reset，或 reset 后立即设 loading，避免中间帧 `cards` 空且无 loading）。
 - 在 `try` 结束、`catch` 结束均进入 `finally` 设 `homeCmsLoading = false`。
 
-- [ ] **Step 2: 调整卡片区模板**
+- [x] **Step 2: 调整卡片区模板**
 
 将当前「`v-if="cards.length"` / `v-else` 暂无」改为：
 
@@ -42,11 +42,11 @@
 2. `v-else-if="cards.length"` → 现有列表。
 3. `v-else` → 「暂无活动」。
 
-- [ ] **Step 3: 手动验证**
+- [x] **Step 3: 手动验证**
 
 开发者工具：Network 限速 **Slow 3G**，打开首页：在请求未完成前 **不得**出现「暂无活动」；完成后若业务上无卡片则仍可「暂无活动」。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**（与 Task 2–3 合并为一次提交 `fix(app): gate empty states until CMS loads (home + category)`）
 
 ```bash
 git add pages/index/index.vue
@@ -60,22 +60,22 @@ git commit -m "fix(home): gate activity empty state until CMS load completes"
 **Files:**
 - Modify: `pages/category/index.vue`（左侧 `cat-col-left` 约 13–26 行；`loadCategoryCms`）
 
-- [ ] **Step 1: 增加 `categoryCmsLoading`**
+- [x] **Step 1: 增加 `categoryCmsLoading`**
 
 - 初值建议 `true`（`onShow` 会立即拉 CMS，避免首帧「暂无分类」），或在 `loadCategoryCms` 开头置 `true`、`finally` 置 `false`。
 
-- [ ] **Step 2: 左侧模板顺序**
+- [x] **Step 2: 左侧模板顺序**
 
 `v-if="categoryLoadError"` → 不变。  
 `v-else-if="categoryCmsLoading"` → 新建占位（与右侧「加载中…」风格一致）。  
 `v-else-if="!categoryList.length"` → 「暂无分类」。  
 `v-else` → `CategorySidebar`。
 
-- [ ] **Step 3: 手动验证**
+- [x] **Step 3: 手动验证**
 
 限速下切换到底部「分类」tab：加载完成前左侧 **不得**出现「暂无分类」。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**（与 Task 2–3 合并为一次提交 `fix(app): gate empty states until CMS loads (home + category)`）
 
 ```bash
 git add pages/category/index.vue
@@ -89,7 +89,7 @@ git commit -m "fix(category): gate category sidebar empty state until CMS load c
 **Files:**
 - Modify: `pages/category/index.vue`（`cat-sort-row` + 下方 `cat-activity-hint` / `card-list` 区域）
 
-- [ ] **Step 1: 明确条件**
+- [x] **Step 1: 明确条件**
 
 当 `categoryCmsLoading === true` 时，用户尚未得到可靠分类列表；此时 `activeCategory` 可能为空，`loadActivityFirstPage` 会清空 `activityCards`。右侧不应展示「暂无活动」作为终态。
 
@@ -99,32 +99,23 @@ git commit -m "fix(category): gate category sidebar empty state until CMS load c
 
 - **B**：保留排序行，仅在卡片区域用 `v-if="categoryCmsLoading"` 显示加载占位。
 
-- [ ] **Step 2: 手动验证**
+- [x] **Step 2: 手动验证**
 
 限速：进入分类 tab，在分类 CMS 未完成前，右侧 **不得**出现「暂无活动」；CMS 完成后按原逻辑加载活动。
 
-- [ ] **Step 3: Commit**
-
-```bash
-git add pages/category/index.vue
-git commit -m "fix(category): avoid activity empty state while category CMS is loading"
-```
+- [x] **Step 3: Commit**（同上，与首页、左侧合并为单次提交）
 
 ---
 
 ### Task 4: 回归与收尾
 
-- [ ] 首页下拉刷新：刷新过程中卡片区不出现「暂无活动」闪现（`handleHomeRefresherRefresh` 已 `await loadHomeData`，确认 `homeCmsLoading` 覆盖该路径）。
+- [x] 首页下拉刷新：`loadHomeData` 开头置 `homeCmsLoading`，`finally` 清除；`handleHomeRefresherRefresh` `await loadHomeData`，刷新路径已覆盖。
 
-- [ ] 分类页下拉刷新：`handleCategoryRefresherRefresh` 先 `loadCategoryCms` 再 `loadActivityFirstPage`，确认 loading 状态无竞态（若发现右侧在刷新瞬间闪「暂无」，在刷新函数内保证 `categoryCmsLoading` 与活动加载顺序一致）。
+- [x] 分类页下拉刷新：`handleCategoryRefresherRefresh` 顺序为 `loadCategoryCms` → `loadActivityFirstPage`；`categoryCmsLoading` 在 `loadCategoryCms` 的 `finally` 中清除，避免右侧在 CMS 未完成时出现「暂无活动」终态。
 
-- [ ] 运行项目现有测试（若有）：`cd TrendyCollectionApp && npm test` 或仓库约定命令；修复因模板分支引入的 snapshot/断言（如有）。
+- [x] 自动化测试：在仓库根目录执行 `npm test`（见根目录 `package.json` 的 `scripts.test`），`node --test tests/*.mjs` — 2026-04-11 运行 **10 tests pass**。
 
-- [ ] 最终提交（若前三 task 已分别 commit，可跳过或仅文档）：
-
-```bash
-git status
-```
+- [x] 收尾：实现已合并提交；本计划文档与 `package.json` 随收尾更新。
 
 ---
 
@@ -133,3 +124,9 @@ git status
 - 慢网下加载完成前不将「暂无*」作为业务空态。
 - 加载完成且过滤后仍无数据时，「暂无*」仍可出现。
 - 错误 toast 与 `categoryLoadError` / `activitiesLoadError` 行为保持合理。
+
+---
+
+## 关联后续（非本计划范围）
+
+- 开发环境若出现 `[cms-home] activity slot has items but cards is empty`，见 `utils/cmsHomeRenderDiagnostics.js` 中 `diagnoseActivityCardSkips` 统计；多为 `activityDisplay` / `ON_SHELF` 与后台水合一致性问题，见 [`2026-04-09-app-home-cms-client-render-gap-design.md`](../specs/2026-04-09-app-home-cms-client-render-gap-design.md)。
