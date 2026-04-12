@@ -18,6 +18,17 @@ export function pickActivityTypeCn(display) {
   return String(display.activityTypeCn ?? '').trim()
 }
 
+/**
+ * @param {Record<string, unknown>|null|undefined} display activityDisplay 或同类对象
+ * @returns {string} 优先 activity_type（snake），否则 activityType（camel）
+ */
+export function pickActivityType(display) {
+  if (display == null || typeof display !== 'object') return ''
+  const snake = String(display.activity_type ?? '').trim()
+  if (snake) return snake
+  return String(display.activityType ?? '').trim()
+}
+
 export function formatMoneyPrice(price) {
   if (price == null || price === '') return ''
   const n = Number(price)
