@@ -188,7 +188,7 @@ function onTap() {
   display: flex;
   align-items: flex-start;
   gap: 10rpx;
-  padding: 16rpx 20rpx 0;
+  padding: 10rpx 8rpx 0;
 }
 
 .card-title-text-wrap {
