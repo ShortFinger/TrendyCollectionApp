@@ -30,7 +30,11 @@
     <view class="card-title-row">
       <text v-if="item.tag" class="card-tag">{{ item.tag }}</text>
       <view class="card-title-text-wrap">
-        {{ item.title }}
+        <scroll-view class="card-title-scroll" scroll-x :show-scrollbar="false">
+          <view class="card-title-text-inner">
+            {{ item.title }}
+          </view>
+        </scroll-view>
       </view>
     </view>
 
@@ -138,19 +142,20 @@ function onTap() {
 .card-title-text-wrap {
   flex: 1;
   min-width: 0;
-  min-height: 88rpx;
-  max-height: 88rpx;
-  font-size: 26rpx;
+}
+
+.card-title-scroll {
+  width: 100%;
+  height: 36rpx;
+}
+
+.card-title-text-inner {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 23rpx;
   font-weight: 600;
   color: #333;
   line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  word-break: break-word;
 }
 
 .card-price-row {
