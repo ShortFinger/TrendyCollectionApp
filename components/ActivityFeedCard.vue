@@ -30,11 +30,21 @@
     <view class="card-title-row">
       <text v-if="item.tag" class="card-tag">{{ item.tag }}</text>
       <view class="card-title-text-wrap">
-        <scroll-view class="card-title-scroll" scroll-x :show-scrollbar="false">
-          <view class="card-title-text-inner">
-            {{ item.title }}
+        <text class="card-title-measure">{{ item.title }}</text>
+        <view class="card-title-viewport">
+          <view v-if="titleMarqueeActive" class="card-title-marquee">
+            <view
+              class="card-title-marquee-track"
+              :style="{ animationDuration: titleMarqueeDuration }"
+            >
+              <text class="card-title-chunk">{{ titleMarqueeChunk }}</text>
+              <text class="card-title-chunk">{{ titleMarqueeChunk }}</text>
+            </view>
           </view>
-        </scroll-view>
+          <view v-else class="card-title-static">
+            <text class="card-title-plain">{{ item.title }}</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -50,7 +60,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, getCurrentInstance } from 'vue'
 
 const props = defineProps({
   item: {
@@ -60,6 +70,48 @@ const props = defineProps({
 })
 
 const descVisible = computed(() => String(props.item.desc ?? '').trim() !== '')
+
+const titleMarqueeChunk = computed(
+  () => `${String(props.item.title ?? '')}\u3000\u3000`
+)
+
+const titleMarqueeActive = ref(false)
+const titleMarqueeDuration = ref('12s')
+
+function measureTitleMarquee() {
+  const inst = getCurrentInstance()
+  const ctx = inst?.proxy
+  if (!ctx) return
+
+  nextTick(() => {
+    const q = uni.createSelectorQuery().in(ctx)
+    q.select('.card-title-viewport').boundingClientRect()
+    q.select('.card-title-measure').boundingClientRect()
+    q.exec((res) => {
+      const viewport = res[0]
+      const measure = res[1]
+      if (!viewport || !measure || !viewport.width) {
+        titleMarqueeActive.value = false
+        return
+      }
+      const overflow = measure.width > viewport.width + 1
+      titleMarqueeActive.value = overflow
+      if (overflow) {
+        const pxPerSec = 42
+        const sec = Math.max(5, Math.min(48, measure.width / pxPerSec))
+        titleMarqueeDuration.value = `${sec}s`
+      }
+    })
+  })
+}
+
+onMounted(measureTitleMarquee)
+
+watch(
+  () => [props.item.title, props.item.tag],
+  () => measureTitleMarquee(),
+  { flush: 'post' }
+)
 
 const emit = defineEmits(['cardTap'])
 
@@ -140,17 +192,75 @@ function onTap() {
 }
 
 .card-title-text-wrap {
+  position: relative;
   flex: 1;
   min-width: 0;
 }
 
-.card-title-scroll {
-  width: 100%;
-  height: 36rpx;
+.card-title-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+  font-size: 23rpx;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 
-.card-title-text-inner {
-  display: inline-block;
+.card-title-viewport {
+  width: 100%;
+  height: 36rpx;
+  overflow: hidden;
+}
+
+.card-title-static {
+  width: 100%;
+  height: 36rpx;
+  overflow: hidden;
+}
+
+.card-title-plain {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 23rpx;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.35;
+}
+
+.card-title-marquee {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.card-title-marquee-track {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  white-space: nowrap;
+  width: max-content;
+  animation-name: card-title-marquee-move;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes card-title-marquee-move {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.card-title-chunk {
+  flex-shrink: 0;
   white-space: nowrap;
   font-size: 23rpx;
   font-weight: 600;
