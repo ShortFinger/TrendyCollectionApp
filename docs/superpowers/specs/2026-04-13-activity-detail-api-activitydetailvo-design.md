@@ -1,7 +1,8 @@
 # AppConfig 活动详情接口与 `ActivityDetailVO` — 设计说明
 
 **日期:** 2026-04-13  
-**状态:** 已定稿（待实现计划）
+**状态:** 已定稿（待实现计划）  
+**修订:** 同日补充 — **活动详情全链路不要求用户登录**；Order **`reward-levels` 匿名可读**（与 `display-batch` 同级，方案 1）。
 
 ## 背景与目标
 
@@ -15,7 +16,10 @@
 
 - **方法 / 路径:** `GET /app-api/v1/activities/{activityId}/detail`
 - **Query:** `channel`、`appVersion`（与分类活动等对齐，便于规则扩展）。
-- **鉴权:** 与现有 `app-api` 公开接口策略一致（若有 Authorization 则透传解析，无则匿名）。
+- **鉴权（用户侧）:** **不要求登录。** 小程序可无 `Authorization` 调用本接口；AppConfig 的 `/app-api/**` 不对用户 JWT 做强制校验。
+- **鉴权（AppConfig → Order）:** AppConfig 聚合调用 Order 时 **不携带用户 Bearer**。因此 Order 侧用于本链路的两个接口均须 **匿名可访问**：
+  - `POST /client-api/activities/display-batch`（已有 `JwtInterceptor` 放行）
+  - `GET /client-api/activities/{activityId}/reward-levels`（**实现上须加入同级放行**，见下节「Order Client 匿名放行」）。
 
 ---
 
@@ -62,7 +66,14 @@
    与现有 **`POST /client-api/activities/display-batch`**（单 id）同源语义；AppConfig 内部可继续通过已有 **`OrderActivityDisplayClient.displayBatch`** 取数并 **只映射上述字段**。
 
 2. **等级列表**  
-   由 Order 提供 **`GET /client-api/activities/{activityId}/reward-levels`**（实现于 `ActivityDisplayController`），返回 **`title` / `icon` / `sortOrder`**；AppConfig 通过 **`OrderRewardLevelsClient`** 调用；**禁止** AppConfig 直连 Order 库表。
+   由 Order 提供 **`GET /client-api/activities/{activityId}/reward-levels`**（实现于 `ActivityDisplayController`），返回 **`title` / `icon` / `sortOrder`**；AppConfig 通过 **`OrderRewardLevelsClient`** 调用；**禁止** AppConfig 直连 Order 库表。  
+   **匿名可读：** 与 `display-batch` 相同语义——仅凭 `activityId` 即可读取展示用等级数据（无用户 Token 时也不得返回 401，否则小程序通用 `request()` 可能触发刷新/跳转登录）。
+
+### Order Client 匿名放行（实现约束）
+
+- **模块:** `TrendyCollectionOrderClient`  
+- **机制:** `JwtInterceptor` 的 `excludePathPatterns` 在现有 `/activities/display-batch`、`/activities/by-category`、`/categories/display-batch` 之外，增加对 **`GET /activities/{activityId}/reward-levels`** 的匹配；在 `server.servlet.context-path: /client-api` 下，与既有规则一致，对 **dispatch path** 使用模式 **`/activities/*/reward-levels`**（单段 `activityId`）。  
+- **不变更:** 其它仍受 JWT 保护的 Order 接口行为；已登录用户带 Token 访问 `reward-levels` 仍应正常。
 
 3. **CMS**  
    **不进行叠加**：详情接口 **不** 查询 CMS、**不** 合并 `activity_card_ref` payload。列表卡上的自定义 `jumpUrl` 等仍仅在 **首页/分类等 CMS 装配链路** 中生效，与本详情 VO **无关**。
@@ -71,7 +82,8 @@
 
 ## 错误与空结果
 
-- 活动不存在或 Order 返回业务失败：统一 **`Result` 错误码**，由端上展示通用失败或空态（**不**依赖 `status` 字段）。
+- 活动不存在或 Order 返回业务失败：统一 **`Result` 错误码**，由端上展示通用失败或空态（**不**依赖 `status` 字段）。  
+  **不得**因「未登录用户」对详情聚合所需的 Order 调用返回 **HTTP 401**（否则与「不要求登录」冲突，且端上易误判为会话失效）。
 - 无等级数据：`rewardLevels` 为 **空数组 `[]`**。
 
 ---
@@ -90,4 +102,4 @@
 
 ---
 
-**下一步:** 按项目流程编写实现计划（`writing-plans`），覆盖 AppConfig Controller、聚合服务、Order 客户端扩展、小程序 `activityDisplayApi` / 页面改造与验收用例。
+**下一步:** 按项目流程编写实现计划（`writing-plans`），覆盖：**Order** `WebMvcConfig` 中 `JwtInterceptor` 放行 `reward-levels`；AppConfig 聚合与小程序 `activityDetailApi` / 页面；**测试：** `reward-levels` 无 `Authorization` 时 `code=0`，及 AppConfig 详情在无用户 Token 场景下的验收。

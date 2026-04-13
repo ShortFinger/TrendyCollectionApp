@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 实现 `GET` 聚合接口（AppConfig）与 Order 侧「按活动 ID 查询奖品等级列表」，使小程序 **`/pages/card/index`**、**`/pages/ichibanKuji/index`** 使用 **`ActivityDetailVO`**（无 CMS、无 `status`），并与设计说明 [`../specs/2026-04-13-activity-detail-api-activitydetailvo-design.md`](../specs/2026-04-13-activity-detail-api-activitydetailvo-design.md) 一致。
+**Goal:** 实现 `GET` 聚合接口（AppConfig）与 Order 侧「按活动 ID 查询奖品等级列表」，使小程序 **`/pages/card/index`**、**`/pages/ichibanKuji/index`** 使用 **`ActivityDetailVO`**（无 CMS、无 `status`），并与设计说明 [`../specs/2026-04-13-activity-detail-api-activitydetailvo-design.md`](../specs/2026-04-13-activity-detail-api-activitydetailvo-design.md) 一致。**活动详情全链路不要求用户登录**：Order **`reward-levels`** 必须与 **`display-batch`** 一样对匿名请求放行（见 spec「Order Client 匿名放行」）。
 
-**Architecture:** Order 暴露 **`GET /client-api/activities/{activityId}/reward-levels`**（仅 `title`/`icon`/`sortOrder`，排序见 spec）。AppConfig 新增 **`GET /app-api/v1/activities/{activityId}/detail`**：并行或串行调用已有 **`OrderActivityDisplayClient.displayBatch`**（单 id）与新 **`OrderRewardLevelsClient`**（或扩展现有 RestClient），组装 **`ActivityDetailVO`**。小程序 **`API_BASE.app`** + **`/v1/activities/{id}/detail`**（与 [`categoryActivitiesApi.js`](../../utils/categoryActivitiesApi.js) 路径风格一致）。
+**Architecture:** Order 暴露 **`GET /client-api/activities/{activityId}/reward-levels`**（仅 `title`/`icon`/`sortOrder`，排序见 spec），且在 **`TrendyCollectionOrderClient`** 的 **`JwtInterceptor`** 白名单中增加 **`/activities/*/reward-levels`**，否则 AppConfig 服务端调用无用户 Bearer 会得到 **401**，聚合失败。AppConfig **`GET /app-api/v1/activities/{activityId}/detail`**：串行调用 **`OrderActivityDisplayClient.displayBatch`**（单 id）与 **`OrderRewardLevelsClient`**，组装 **`ActivityDetailVO`**。小程序 **`API_BASE.app`** + **`/v1/activities/{id}/detail`**（与 [`categoryActivitiesApi.js`](../../utils/categoryActivitiesApi.js) 路径风格一致）。
 
 **Tech Stack:** Java 21, Spring Boot 3, MyBatis-Plus, uni-app / Vue 3；模块：`TrendyCollectionOrderClient`, `TrendyCollectionAppConfig`, `TrendyCollectionApp`。
 
@@ -14,6 +14,8 @@
 
 | 区域 | 路径 | 职责 |
 |------|------|------|
+| Order | `TrendyCollectionOrderClient/.../config/WebMvcConfig.java` | **`JwtInterceptor`** 的 `excludePathPatterns` 增加 **`/activities/*/reward-levels`**（dispatch path，与现有 `/activities/display-batch` 同级） |
+| Order | `TrendyCollectionOrderClient/src/test/java/.../RewardLevelsAnonymousIntegrationTest.java`（新建） | 全上下文 **MockMvc**：无 `Authorization` 访问 **`reward-levels`** 返回 **200**、`code=0`（先于实现编写则应先失败） |
 | Order | `TrendyCollectionOrderClient/.../dto/response/RewardLevelItemVO.java` | 公开 DTO：`title`, `icon`, `sortOrder` |
 | Order | `TrendyCollectionOrderClient/.../service/RewardLevelQueryService.java`（或并入 `ActivityDisplayService`） | 按 `activityId` 查 `RewardLevelMapper`，`sort_order asc, id asc`，`@TableLogic` 已处理删除 |
 | Order | 修改 `TrendyCollectionOrderClient/.../controller/ActivityDisplayController.java`（推荐）或新建同前缀 Controller | `GET /activities/{activityId}/reward-levels`；全局 **`server.servlet.context-path: /client-api`**（见 `application.yml`），故对外 **`/client-api/activities/{activityId}/reward-levels`** |
@@ -27,6 +29,116 @@
 | App | `TrendyCollectionApp/utils/activityDetailApi.js` | `fetchActivityDetail(activityId, { channel, appVersion })` |
 | App | `TrendyCollectionApp/pages/card/index.vue` | 改用详情 API；**去掉** 依赖 `status` 的 `available`；封面无 VO 字段时用占位或首等级 `icon`（见 Task 5） |
 | App | `TrendyCollectionApp/pages/ichibanKuji/index.vue` | `onLoad` 读 `activityId`，拉详情，`ensureCanonicalActivityRoute`，用 `rewardLevels` 驱动「奖池预览」区最小绑定（可保留部分静态样式） |
+
+---
+
+### Task 0: Order — `JwtInterceptor` 放行 `GET /activities/{id}/reward-levels`（匿名，AppConfig 可聚合）
+
+**执行顺序:** `GET .../reward-levels` 必须已注册（本计划 **Task 1**）。若仓库里 Task 1 已落地，可直接做 Task 0；若从零执行，**先做 Task 1 再做 Task 0**（或将 Task 0 的 `WebMvcConfig` 修改与 Task 1 同一次提交，并仍保留本集成测试）。
+
+**Files:**
+- Modify: `TrendyCollectionService/TrendyCollectionOrderClient/src/main/java/com/trendy/client/config/WebMvcConfig.java`
+- Create: `TrendyCollectionService/TrendyCollectionOrderClient/src/test/java/com/trendy/client/security/RewardLevelsAnonymousIntegrationTest.java`
+
+- [ ] **Step 1: 编写会先失败的集成测试（TDD）**
+
+新建 `RewardLevelsAnonymousIntegrationTest`，使用完整 Spring 上下文 + MockMvc，**不携带** `Authorization`：
+
+```java
+package com.trendy.client.security;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+class RewardLevelsAnonymousIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void rewardLevels_withoutAuthorization_returns200AndCode0() throws Exception {
+        mockMvc.perform(get("/client-api/activities/anon-itest-id/reward-levels")
+                        .contextPath("/client-api"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").isArray());
+    }
+}
+```
+
+说明：在 **`excludePathPatterns` 未包含 `reward-levels` 的当前代码上**，本测试应得到 **401** 或 **非 0 业务体**，与 `andExpect(status().isOk())` 冲突 → **测试失败**，符合红阶段。
+
+- [ ] **Step 2: 运行测试确认失败**
+
+Run:
+
+```bash
+cd TrendyCollectionService/TrendyCollectionOrderClient && mvn -q test -Dtest=RewardLevelsAnonymousIntegrationTest
+```
+
+Expected: **FAIL**（例如 `status expected:<200> but was:<401>`）。
+
+- [ ] **Step 3: 修改 `WebMvcConfig` 放行路径**
+
+在 `excludePathPatterns(...)` 列表中**追加**一行（保留原有项）：
+
+```java
+"/activities/*/reward-levels",
+```
+
+完整示例（仅展示 `excludePathPatterns` 块，省略无关 import）：
+
+```java
+.excludePathPatterns(
+        "/swagger-ui/**",
+        "/v3/api-docs/**",
+        "/doc.html/**",
+        "/webjars/**",
+        "/activities/display-batch",
+        "/activities/by-category",
+        "/categories/display-batch",
+        "/activities/*/reward-levels"
+);
+```
+
+- [ ] **Step 4: 再次运行同一测试，确认通过**
+
+Run:
+
+```bash
+cd TrendyCollectionService/TrendyCollectionOrderClient && mvn -q test -Dtest=RewardLevelsAnonymousIntegrationTest
+```
+
+Expected: **PASS**。
+
+- [ ] **Step 5: 全量模块测试**
+
+Run:
+
+```bash
+cd TrendyCollectionService/TrendyCollectionOrderClient && mvn -q test
+```
+
+Expected: **全通过**。
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add TrendyCollectionService/TrendyCollectionOrderClient/src/main/java/com/trendy/client/config/WebMvcConfig.java \
+  TrendyCollectionService/TrendyCollectionOrderClient/src/test/java/com/trendy/client/security/RewardLevelsAnonymousIntegrationTest.java
+git commit -m "fix(order-client): allow anonymous GET activities/*/reward-levels for AppConfig detail"
+```
 
 ---
 
@@ -88,7 +200,7 @@ public Result<List<RewardLevelItemVO>> rewardLevels(@PathVariable String activit
 
 Run: `cd TrendyCollectionService/TrendyCollectionOrderClient && mvn -q test`
 
-Expected: 新增测试 + 全量通过。
+Expected: 新增测试 + 全量通过（**若已实现 Task 0**，`RewardLevelsAnonymousIntegrationTest` 应仍通过；**若 Task 1 先于 Task 0 落地**，须补跑 Task 0 或先合并白名单再测）。
 
 - [ ] **Step 6: Commit**
 
@@ -243,9 +355,10 @@ git commit -m "feat(app): load ActivityDetailVO on ichibanKuji page"
 ### Task 5: 文档与 spec 对齐（可选小补）
 
 **Files:**
-- Modify: `TrendyCollectionApp/docs/superpowers/specs/2026-04-13-activity-detail-api-activitydetailvo-design.md`（若需补充 Order 精确路径）
+- Modify: `TrendyCollectionApp/docs/superpowers/specs/2026-04-13-activity-detail-api-activitydetailvo-design.md`（若路径或鉴权与实现不一致）
 
 - [ ] 若 Order 最终路径与文中「`/client-api/activities/{id}/reward-levels`」不一致，**改 spec 一行**并提交。
+- [ ] 鉴权：**匿名 `reward-levels`** 已在 spec「修订」与「Order Client 匿名放行」中描述；实现须与之一致，**无需重复抄 doc**，除非白名单模式从 `/activities/*/reward-levels` 改为其它写法（则同步改 spec）。
 
 ---
 
@@ -253,6 +366,7 @@ git commit -m "feat(app): load ActivityDetailVO on ichibanKuji page"
 
 | Spec 要求 | 对应 Task |
 |-----------|-----------|
+| 活动详情不要求登录；`reward-levels` 匿名可读；聚合不得因未登录 401 | **Task 0**（Order 白名单）+ Task 2–4 端上验证 |
 | `GET .../detail`，query `channel`/`appVersion` | Task 2 |
 | VO：`id`,`title`,`activityType`,`activityTypeCn`,`rewardLevels[]` | Task 2 |
 | `rewardLevels` 元素 `title`,`icon`,`sortOrder` | Task 1–2 |
