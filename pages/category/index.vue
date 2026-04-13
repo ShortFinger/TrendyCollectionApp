@@ -105,6 +105,7 @@ import { SLOT_TYPE_CATEGORY_LIST } from '@/utils/cmsSlotContentTypes.js'
 import { buildCategorySidebarItemsFromCmsSlot } from '@/utils/categoryListFromCms.js'
 import { fetchCategoryActivitiesPage } from '@/utils/categoryActivitiesApi.js'
 import { activityDisplaySnapshotToCardItem } from '@/utils/activityDisplayToCardItem.js'
+import { openInternalUrl } from '@/utils/openInternalUrl.js'
 
 /** 与后台 App 页 `page_key`、槽位 `category_list` 一致 */
 const CMS_CATEGORY_PAGE_KEY = 'category'
@@ -139,40 +140,6 @@ const activityListLoading = ref(false)
 const activityListLoadingMore = ref(false)
 const activitiesLoadError = ref('')
 const activityFetchGen = ref(0)
-
-const TAB_PATHS = [
-  '/pages/index/index',
-  '/pages/category/index',
-  '/pages/ichibanKuji/index',
-  '/pages/mine/index'
-]
-
-function pathOnly(url) {
-  if (!url || typeof url !== 'string') return ''
-  const q = url.indexOf('?')
-  return q === -1 ? url : url.slice(0, q)
-}
-
-function withLeadingSlash(path) {
-  if (!path) return ''
-  return path[0] === '/' ? path : `/${path}`
-}
-
-function openInternalUrl(url) {
-  if (!url) return
-  const path = withLeadingSlash(pathOnly(url))
-  const fullUrl = url.includes('?') ? path + url.slice(url.indexOf('?')) : path
-  const isTab = TAB_PATHS.includes(path)
-  if (!isTab) {
-    uni.navigateTo({ url: fullUrl })
-    return
-  }
-  if (fullUrl.includes('?')) {
-    uni.reLaunch({ url: fullUrl })
-    return
-  }
-  uni.switchTab({ url: path })
-}
 
 function handleJump(jumpType, jumpUrl) {
   if (!jumpUrl || jumpType === 'none') return

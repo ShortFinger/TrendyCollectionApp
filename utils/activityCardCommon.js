@@ -39,6 +39,23 @@ export function formatMoneyPrice(price) {
 }
 
 /**
+ * 无 CMS 自定义 jumpUrl 时的默认站内落地路径（与 spec 默认跳转表一致）。
+ * @param {string} activityId
+ * @param {string} activityType Order 枚举名，如 ICHIBAN、CARD
+ */
+export function defaultActivityLandingUrl(activityId, activityType) {
+  const id = encodeURIComponent(activityId)
+  const typeStr = pickString(activityType)
+  if (typeStr === 'CARD') {
+    return `/pages/card/index?activityId=${id}`
+  }
+  if (typeStr === 'ICHIBAN' || typeStr === 'UNLIMITED') {
+    return `/pages/ichibanKuji/index?activityId=${id}`
+  }
+  return `/pages/activity/other/index?activityId=${id}`
+}
+
+/**
  * @param {string} activityId
  * @param {string} activityType Order 枚举名，如 ICHIBAN
  * @param {string} payloadJumpType CMS payload，API 场景传 ''
@@ -48,15 +65,8 @@ export function buildActivityJump(activityId, activityType, payloadJumpType, pay
   const jt = pickString(payloadJumpType) || 'page'
   const ju = pickString(payloadJumpUrl)
   if (ju) return { jumpType: jt, jumpUrl: ju }
-  const typeStr = pickString(activityType)
-  if (typeStr === 'ICHIBAN' || typeStr === 'UNLIMITED') {
-    return {
-      jumpType: 'page',
-      jumpUrl: `/pages/ichibanKuji/index?activityId=${encodeURIComponent(activityId)}`
-    }
-  }
   return {
     jumpType: 'page',
-    jumpUrl: `/pages/ichibanKuji/index?activityId=${encodeURIComponent(activityId)}`
+    jumpUrl: defaultActivityLandingUrl(activityId, activityType)
   }
 }

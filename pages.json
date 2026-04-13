@@ -21,6 +21,18 @@
       }
     },
     {
+      "path": "pages/card/index",
+      "style": {
+        "navigationBarTitleText": "抽卡机"
+      }
+    },
+    {
+      "path": "pages/activity/other/index",
+      "style": {
+        "navigationBarTitleText": "活动详情"
+      }
+    },
+    {
       "path": "pages/mine/index",
       "style": {
         "navigationBarTitleText": "我的"

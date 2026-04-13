@@ -1,5 +1,12 @@
 <template>
   <view class="blindbox-page">
+    <view v-if="loading" class="page-state">
+      <text class="page-state-text">加载中…</text>
+    </view>
+    <view v-else-if="loadError" class="page-state">
+      <text class="page-state-text">{{ loadError }}</text>
+    </view>
+    <block v-else>
 
     <scroll-view class="blindbox-scroll" scroll-y>
       <!-- 顶部主题卡片（当前奖池） -->
@@ -62,8 +69,8 @@
 
         <view class="reward-grid">
           <view
-            v-for="group in rewardGroups"
-            :key="group.level"
+            v-for="(group, gi) in rewardGroups"
+            :key="'rg-' + gi"
             class="reward-card"
           >
             <view class="reward-tag" :style="{ backgroundColor: group.tagBg }">
@@ -112,19 +119,29 @@
         <text class="bottom-btn-text">全收！</text>
       </view>
     </view>
+    </block>
   </view>
 </template>
 
 <script setup>
-const poolInfo = {
-  title: '潮萌联名盲盒系列',
-  desc: '限定款收藏，一次抽取一张，支持多张连抽。',
-  price: '59',
-  currentBox: 3,
-  totalBox: 7,
-  leftCount: 59,
-  totalCount: 66
-}
+import { ref, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { fetchActivityDetail } from '@/utils/activityDetailApi.js'
+import { ensureCanonicalActivityRoute } from '@/utils/activityRouteCanonical.js'
+
+const loading = ref(true)
+const loadError = ref('')
+const vo = ref(null)
+
+const poolInfo = ref({
+  title: '',
+  desc: '玩法与库存以实际活动为准。',
+  price: '—',
+  currentBox: 1,
+  totalBox: 1,
+  leftCount: 0,
+  totalCount: 0
+})
 
 const tabs = [
   { key: 'current', label: '本箱' },
@@ -132,46 +149,69 @@ const tabs = [
   { key: 'history', label: '开盒记录' }
 ]
 
-const activeTab = 'current'
+const activeTab = ref('current')
 
-const rewardGroups = [
-  {
-    level: 'A',
-    title: '限量抱枕 / 毛毯套装',
-    short: '抱枕',
-    left: 1,
-    total: 2,
-    tagBg: '#e6f7ff',
-    coverBg: '#f3f8ff'
+const rewardGroups = ref([])
+
+const TAG_BG = ['#e6f7ff', '#e8f9f0', '#fff3e8', '#f5f5ff', '#fff0f6', '#f6ffed']
+
+function mapLevelsToGroups(levels) {
+  if (!Array.isArray(levels) || levels.length === 0) return []
+  return levels.map((lvl, idx) => {
+    const title = String(lvl.title ?? '').trim() || `等级 ${idx + 1}`
+    const short = title.length > 4 ? title.slice(0, 4) : title
+    return {
+      level: String(idx + 1),
+      title,
+      short,
+      left: 0,
+      total: 0,
+      tagBg: TAG_BG[idx % TAG_BG.length],
+      coverBg: TAG_BG[(idx + 1) % TAG_BG.length]
+    }
+  })
+}
+
+watch(
+  () => vo.value,
+  (v) => {
+    if (!v) return
+    const t = String(v.title ?? '').trim()
+    poolInfo.value = {
+      ...poolInfo.value,
+      title: t || '赏柜活动'
+    }
+    if (t) uni.setNavigationBarTitle({ title: t })
+    rewardGroups.value = mapLevelsToGroups(v.rewardLevels)
   },
-  {
-    level: 'B',
-    title: '系列公仔盲盒',
-    short: '公仔',
-    left: 2,
-    total: 4,
-    tagBg: '#e8f9f0',
-    coverBg: '#e9f7f0'
-  },
-  {
-    level: 'C',
-    title: '主题手提袋 / 口罩',
-    short: '周边',
-    left: 4,
-    total: 6,
-    tagBg: '#fff3e8',
-    coverBg: '#fff7ec'
-  },
-  {
-    level: 'D',
-    title: '随机贴纸 / 钥匙扣',
-    short: '小物',
-    left: 12,
-    total: 20,
-    tagBg: '#f5f5ff',
-    coverBg: '#f3f4ff'
+  { immediate: true }
+)
+
+async function load(id) {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const data = await fetchActivityDetail(id)
+    const at = String(data.activityType ?? '').trim()
+    if (!ensureCanonicalActivityRoute(id, at)) return
+    vo.value = data
+  } catch {
+    loadError.value = '加载失败，请稍后重试'
+  } finally {
+    loading.value = false
   }
-]
+}
+
+onLoad((query) => {
+  const id = String(query?.activityId ?? '').trim()
+  if (!id) {
+    loading.value = false
+    uni.showToast({ title: '缺少活动参数', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 400)
+    return
+  }
+  load(id)
+})
 
 const goBack = () => {
   uni.navigateBack()
@@ -179,6 +219,19 @@ const goBack = () => {
 </script>
 
 <style lang="scss">
+.page-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.page-state-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
 .blindbox-page {
   height: 100vh;
   display: flex;

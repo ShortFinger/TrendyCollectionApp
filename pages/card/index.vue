@@ -6,10 +6,6 @@
     <view v-else-if="loadError" class="state">
       <text class="state-text">{{ loadError }}</text>
     </view>
-    <view v-else-if="!available" class="state">
-      <text class="state-title">活动不可用</text>
-      <text class="state-sub">活动已下架或不存在</text>
-    </view>
     <view v-else class="content">
       <view class="main">
         <view
@@ -27,7 +23,7 @@
       </view>
     </view>
 
-    <view v-if="available" class="bar">
+    <view v-if="vo" class="bar">
       <view
         v-for="n in drawCounts"
         :key="n"
@@ -43,7 +39,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { fetchActivityDisplayById } from '@/utils/activityDisplayApi.js'
+import { fetchActivityDetail } from '@/utils/activityDetailApi.js'
 import { ensureCanonicalActivityRoute } from '@/utils/activityRouteCanonical.js'
 
 const drawCounts = [1, 5, 10, 20]
@@ -52,22 +48,21 @@ const loading = ref(true)
 const loadError = ref('')
 const vo = ref(null)
 
-const available = computed(() => {
-  const v = vo.value
-  if (!v) return false
-  return String(v.status ?? '').trim() === 'ON_SHELF'
-})
-
 const coverUrl = computed(() => {
   const v = vo.value
   if (!v) return ''
-  return String(v.squareThumb || v.longThumb || '').trim()
+  const levels = v.rewardLevels
+  if (Array.isArray(levels) && levels.length > 0) {
+    const icon = String(levels[0]?.icon ?? '').trim()
+    if (icon) return icon
+  }
+  return ''
 })
 
 watch(
   () => vo.value,
   (v) => {
-    if (!v || String(v.status ?? '').trim() !== 'ON_SHELF') return
+    if (!v) return
     const t = String(v.title ?? '').trim()
     if (t) uni.setNavigationBarTitle({ title: t })
   },
@@ -78,7 +73,7 @@ async function load(id) {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await fetchActivityDisplayById(id)
+    const data = await fetchActivityDetail(id)
     if (!data) return
     const at = String(data.activityType ?? '').trim()
     if (!ensureCanonicalActivityRoute(id, at)) return

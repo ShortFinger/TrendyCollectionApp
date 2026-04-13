@@ -94,6 +94,7 @@ import {
   normalizeCmsItemPayload
 } from '@/utils/cmsPayloadShape.js'
 import { logCmsHomeRenderDiagnostics } from '@/utils/cmsHomeRenderDiagnostics.js'
+import { openInternalUrl } from '@/utils/openInternalUrl.js'
 
 const CMS_PAGE_KEY = 'home'
 const CMS_SLOT_TYPES = ['search_bar', 'banner_row', 'icon_grid', 'activity_card_grid']
@@ -291,40 +292,6 @@ const processSlots = async (slots) => {
     const processor = slotProcessors[slotType]
     if (processor) await processor({ ...slot, slotType })
   }
-}
-
-const TAB_PATHS = [
-  '/pages/index/index',
-  '/pages/category/index',
-  '/pages/ichibanKuji/index',
-  '/pages/mine/index'
-]
-
-function pathOnly(url) {
-  if (!url || typeof url !== 'string') return ''
-  const q = url.indexOf('?')
-  return q === -1 ? url : url.slice(0, q)
-}
-
-function withLeadingSlash(path) {
-  if (!path) return ''
-  return path[0] === '/' ? path : `/${path}`
-}
-
-function openInternalUrl(url) {
-  if (!url) return
-  const path = withLeadingSlash(pathOnly(url))
-  const fullUrl = url.includes('?') ? path + url.slice(url.indexOf('?')) : path
-  const isTab = TAB_PATHS.includes(path)
-  if (!isTab) {
-    uni.navigateTo({ url: fullUrl })
-    return
-  }
-  if (fullUrl.includes('?')) {
-    uni.reLaunch({ url: fullUrl })
-    return
-  }
-  uni.switchTab({ url: path })
 }
 
 const handleJump = (jumpType, jumpUrl) => {
