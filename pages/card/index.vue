@@ -28,9 +28,10 @@
         v-for="n in drawCounts"
         :key="n"
         class="bar-btn"
-        @tap="onPlaceholder"
+        :class="{ 'bar-btn-disabled': drawing }"
+        @tap="onDraw(n)"
       >
-        <text class="bar-btn-text">{{ n }}抽</text>
+        <text class="bar-btn-text">{{ drawing ? '抽奖中…' : n + '抽' }}</text>
       </view>
     </view>
   </view>
@@ -41,12 +42,15 @@ import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { fetchActivityDetail } from '@/utils/activityDetailApi.js'
 import { ensureCanonicalActivityRoute } from '@/utils/activityRouteCanonical.js'
+import { submitDraw } from '@/utils/drawApi.js'
 
 const drawCounts = [1, 5, 10, 20]
 
 const loading = ref(true)
 const loadError = ref('')
 const vo = ref(null)
+const drawing = ref(false)
+const activityId = ref('')
 
 const coverUrl = computed(() => {
   const v = vo.value
@@ -78,6 +82,7 @@ async function load(id) {
     const at = String(data.activityType ?? '').trim()
     if (!ensureCanonicalActivityRoute(id, at)) return
     vo.value = data
+    activityId.value = id
   } catch {
     loadError.value = '加载失败，请稍后重试'
   } finally {
@@ -98,6 +103,37 @@ onLoad((query) => {
 
 function onPlaceholder() {
   uni.showToast({ title: '玩法接入中', icon: 'none' })
+}
+
+const STOP_REASON_TEXT = {
+  POOL_EMPTY: '奖池已空',
+  USER_LIMIT_EXCEEDED: '已达抽奖上限'
+}
+
+async function onDraw(count) {
+  if (drawing.value) return
+  if (!activityId.value) return
+
+  drawing.value = true
+  try {
+    const data = await submitDraw(activityId.value, count)
+    const msg = `抽中 ${data.totalDrawn} 个奖品`
+    uni.showToast({ title: msg, icon: 'none' })
+
+    if (data.stoppedEarly && data.stopReason) {
+      setTimeout(() => {
+        uni.showToast({
+          title: STOP_REASON_TEXT[data.stopReason] || '抽奖提前结束',
+          icon: 'none'
+        })
+      }, 1500)
+    }
+  } catch (err) {
+    const msg = err?.message || '抽奖失败，请稍后重试'
+    uni.showToast({ title: msg, icon: 'none' })
+  } finally {
+    drawing.value = false
+  }
 }
 </script>
 
@@ -203,5 +239,9 @@ function onPlaceholder() {
   font-size: 26rpx;
   font-weight: 600;
   color: #fff;
+}
+
+.bar-btn-disabled {
+  opacity: 0.5;
 }
 </style>
