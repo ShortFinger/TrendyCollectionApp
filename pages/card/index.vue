@@ -1,0 +1,212 @@
+<template>
+  <view class="page">
+    <view v-if="loading" class="state">
+      <text class="state-text">加载中…</text>
+    </view>
+    <view v-else-if="loadError" class="state">
+      <text class="state-text">{{ loadError }}</text>
+    </view>
+    <view v-else-if="!available" class="state">
+      <text class="state-title">活动不可用</text>
+      <text class="state-sub">活动已下架或不存在</text>
+    </view>
+    <view v-else class="content">
+      <view class="main">
+        <view
+          class="cover"
+          :style="{ backgroundImage: coverUrl ? `url(${coverUrl})` : '' }"
+        />
+        <view class="side">
+          <view class="side-item" @tap="onPlaceholder">
+            <text class="side-text">中赏概率</text>
+          </view>
+          <view class="side-item" @tap="onPlaceholder">
+            <text class="side-text">购买说明</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view v-if="available" class="bar">
+      <view
+        v-for="n in drawCounts"
+        :key="n"
+        class="bar-btn"
+        @tap="onPlaceholder"
+      >
+        <text class="bar-btn-text">{{ n }}抽</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
+import { fetchActivityDisplayById } from '@/utils/activityDisplayApi.js'
+import { ensureCanonicalActivityRoute } from '@/utils/activityRouteCanonical.js'
+
+const drawCounts = [1, 5, 10, 20]
+
+const loading = ref(true)
+const loadError = ref('')
+const vo = ref(null)
+
+const available = computed(() => {
+  const v = vo.value
+  if (!v) return false
+  return String(v.status ?? '').trim() === 'ON_SHELF'
+})
+
+const coverUrl = computed(() => {
+  const v = vo.value
+  if (!v) return ''
+  return String(v.squareThumb || v.longThumb || '').trim()
+})
+
+watch(
+  () => vo.value,
+  (v) => {
+    if (!v || String(v.status ?? '').trim() !== 'ON_SHELF') return
+    const t = String(v.title ?? '').trim()
+    if (t) uni.setNavigationBarTitle({ title: t })
+  },
+  { immediate: true }
+)
+
+async function load(id) {
+  loading.value = true
+  loadError.value = ''
+  try {
+    const data = await fetchActivityDisplayById(id)
+    if (!data) return
+    const at = String(data.activityType ?? '').trim()
+    if (!ensureCanonicalActivityRoute(id, at)) return
+    vo.value = data
+  } catch {
+    loadError.value = '加载失败，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+onLoad((query) => {
+  const id = String(query?.activityId ?? '').trim()
+  if (!id) {
+    loading.value = false
+    uni.showToast({ title: '缺少活动参数', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 400)
+    return
+  }
+  load(id)
+})
+
+function onPlaceholder() {
+  uni.showToast({ title: '玩法接入中', icon: 'none' })
+}
+</script>
+
+<style lang="scss" scoped>
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f7f8fa;
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.state {
+  padding: 120rpx 40rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.state-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.state-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.state-sub {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.cover {
+  flex: 1;
+  min-width: 0;
+  background-color: #eee;
+  background-size: cover;
+  background-position: center;
+}
+
+.side {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24rpx;
+  padding: 16rpx 20rpx;
+}
+
+.side-item {
+  padding: 8rpx 0;
+}
+
+.side-text {
+  font-size: 26rpx;
+  color: #333;
+}
+
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 12rpx;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.bar-btn {
+  flex: 1;
+  border-radius: 999rpx;
+  padding: 20rpx 8rpx;
+  text-align: center;
+  background: #111;
+}
+
+.bar-btn-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
+}
+</style>
