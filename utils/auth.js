@@ -1,6 +1,9 @@
 import { request, setTokens, clearTokens, API_BASE } from './request.js'
 import { setUser, getUser, clearUser } from '../store/user.js'
 
+/** 运维在服务端 wx.miniapp.apps 配置的 key，非微信 appId（请求头 X-Mini-App-Key） */
+export const WX_MINI_APP_KEY = 'wxmini2f1e'
+
 export async function login() {
   let loginRes
   try {
@@ -11,7 +14,8 @@ export async function login() {
   const data = await request({
     url: '/auth/login',
     method: 'POST',
-    data: { code: loginRes.code }
+    data: { code: loginRes.code },
+    header: { 'X-Mini-App-Key': WX_MINI_APP_KEY }
   })
   setTokens(data.accessToken, data.refreshToken)
   setUser(data.user)
@@ -44,7 +48,8 @@ export async function bindPhone(code) {
   const data = await request({
     url: '/auth/bindPhone',
     method: 'POST',
-    data: { code }
+    data: { code },
+    header: { 'X-Mini-App-Key': WX_MINI_APP_KEY }
   })
   setUser(data)
   return data
