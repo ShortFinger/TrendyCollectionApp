@@ -106,16 +106,16 @@
 
     <!-- 底部操作条 -->
     <view class="bottom-bar">
-      <view class="bottom-btn ghost">
+      <view class="bottom-btn ghost" @tap="onTapPaidDraw(1)">
         <text class="bottom-btn-text ghost-text">收 1 张</text>
       </view>
-      <view class="bottom-btn ghost">
-        <text class="bottom-btn-text ghost-text">收 3 张</text>
-      </view>
-      <view class="bottom-btn ghost">
+      <view class="bottom-btn ghost" @tap="onTapPaidDraw(5)">
         <text class="bottom-btn-text ghost-text">收 5 张</text>
       </view>
-      <view class="bottom-btn primary">
+      <view class="bottom-btn ghost" @tap="onTapPaidDraw(10)">
+        <text class="bottom-btn-text ghost-text">收 10 张</text>
+      </view>
+      <view class="bottom-btn primary" @tap="onTapPaidDraw(20)">
         <text class="bottom-btn-text">全收！</text>
       </view>
     </view>
@@ -128,6 +128,7 @@ import { ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { fetchActivityDetail } from '@/utils/activityDetailApi.js'
 import { ensureCanonicalActivityRoute } from '@/utils/activityRouteCanonical.js'
+import { createDrawOrder, prepayDrawOrder, paidDrawByOrder, simulateConfirmPaid } from '@/utils/drawApi.js'
 
 const loading = ref(true)
 const loadError = ref('')
@@ -152,6 +153,7 @@ const tabs = [
 const activeTab = ref('current')
 
 const rewardGroups = ref([])
+const paying = ref(false)
 
 const TAG_BG = ['#e6f7ff', '#e8f9f0', '#fff3e8', '#f5f5ff', '#fff0f6', '#f6ffed']
 
@@ -215,6 +217,73 @@ onLoad((query) => {
 
 const goBack = () => {
   uni.navigateBack()
+}
+
+function getMiniProgramAppId() {
+  // #ifdef MP-WEIXIN
+  return 'wxeb00df376384e072'
+  // #endif
+  return ''
+}
+
+async function invokeWechatPay(orderId) {
+  const wxAppId = getMiniProgramAppId()
+  if (!wxAppId) {
+    throw new Error('当前环境不支持微信小程序支付')
+  }
+  const prepay = await prepayDrawOrder(orderId, wxAppId)
+  await new Promise((resolve, reject) => {
+    uni.requestPayment({
+      provider: 'wxpay',
+      timeStamp: String(prepay.timeStamp || ''),
+      nonceStr: prepay.nonceStr,
+      package: prepay.packageVal,
+      signType: prepay.signType || 'RSA',
+      paySign: prepay.paySign,
+      success: resolve,
+      fail: reject
+    })
+  })
+  return paidDrawByOrder(orderId)
+}
+
+async function invokeDevSimulation(orderId, orderNumber) {
+  const token = uni.getStorageSync('wxPaySimToken') || ''
+  if (!token) {
+    throw new Error('开发联调缺少 wxPaySimToken')
+  }
+  await simulateConfirmPaid(orderNumber, token)
+  return paidDrawByOrder(orderId)
+}
+
+async function onTapPaidDraw(drawCount) {
+  if (paying.value) return
+  if (!vo.value?.id) {
+    uni.showToast({ title: '活动信息未就绪', icon: 'none' })
+    return
+  }
+  paying.value = true
+  uni.showLoading({ title: '处理中...', mask: true })
+  try {
+    const order = await createDrawOrder(vo.value.id, drawCount)
+    const isMp = typeof wx !== 'undefined'
+    const useSimulation = process.env.NODE_ENV !== 'production' && !isMp
+    const drawResult = useSimulation
+      ? await invokeDevSimulation(order.orderId, order.orderNumber)
+      : await invokeWechatPay(order.orderId)
+    uni.hideLoading()
+    uni.showToast({ title: '抽选成功', icon: 'success' })
+    setTimeout(() => {
+      uni.navigateTo({
+        url: `/pages/card/index?drawResponse=${encodeURIComponent(JSON.stringify(drawResult))}`
+      })
+    }, 240)
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: e?.message || '支付/抽选失败', icon: 'none' })
+  } finally {
+    paying.value = false
+  }
 }
 </script>
 

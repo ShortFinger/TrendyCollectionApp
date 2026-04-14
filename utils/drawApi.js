@@ -13,3 +13,48 @@ export function submitDraw(activityId, drawCount) {
     data: { activityId, drawCount }
   })
 }
+
+export function createDrawOrder(activityId, drawCount, boxId = '') {
+  return request({
+    base: API_BASE.order,
+    url: '/api/orders/draw',
+    method: 'POST',
+    data: {
+      activityId,
+      drawCount,
+      boxId: boxId || undefined,
+      payType: 'wechat',
+      paySubType: 'miniapp'
+    }
+  })
+}
+
+export function prepayDrawOrder(orderId, wxAppId) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/orders/draw/prepay',
+    method: 'POST',
+    data: { orderId, wxAppId }
+  })
+}
+
+export function paidDrawByOrder(orderId) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/draw/paid',
+    method: 'POST',
+    data: { orderId }
+  })
+}
+
+export function simulateConfirmPaid(orderNumber, token) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/pay/wechat/simulate/confirm',
+    method: 'POST',
+    header: {
+      'X-Wx-Sim-Token': token
+    },
+    data: { orderNumber }
+  })
+}
