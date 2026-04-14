@@ -14,6 +14,7 @@
 
 <script setup>
 import { bindPhone } from '../../utils/auth.js'
+import { toastResultError } from '../../utils/api-error.js'
 
 function getEventChannel() {
   const pages = getCurrentPages()
@@ -22,20 +23,27 @@ function getEventChannel() {
 }
 
 async function onGetPhone(e) {
-  if (e.detail.errMsg !== 'getPhoneNumber:ok') {
+  const detail = e?.detail || {}
+  const errMsg = detail.errMsg || ''
+  if (errMsg && !errMsg.includes('ok')) {
     uni.showToast({ title: '授权已取消', icon: 'none' })
+    return
+  }
+  const code = detail.code
+  if (!code) {
+    uni.showToast({ title: '未获取到手机号凭证，请重试', icon: 'none' })
     return
   }
   try {
     uni.showLoading({ title: '绑定中...' })
-    await bindPhone(e.detail.code)
+    await bindPhone(code)
     uni.hideLoading()
     uni.showToast({ title: '绑定成功', icon: 'success' })
     getEventChannel().emit('onBound')
     setTimeout(() => uni.navigateBack(), 500)
   } catch (err) {
     uni.hideLoading()
-    uni.showToast({ title: '绑定失败，请重试', icon: 'none' })
+    toastResultError(err, { fallback: '绑定失败，请重试' })
   }
 }
 

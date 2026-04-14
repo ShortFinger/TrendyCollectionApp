@@ -1,18 +1,33 @@
 <template>
-  <view class="login-page">
-    <view class="card">
+  <view class="login-root">
+    <view class="mask" @tap="handleMaskTap" />
+    <view class="sheet" @tap.stop>
+      <view class="sheet-handle" />
       <text class="title">登录</text>
-      <text class="desc">请进行微信登录以继续使用“我的”等需要用户信息的功能。</text>
-      <button class="login-btn" :loading="loading" @tap="handleLogin">
-        微信登录
+      <text class="desc">授权手机号并完成微信登录后，可使用「我的」等需要账号的功能。</text>
+      <button
+        class="primary-btn"
+        type="primary"
+        open-type="getPhoneNumber"
+        :loading="loading"
+        :disabled="loading"
+        @getphonenumber="handleGetPhoneNumber"
+      >
+        授权手机号并登录
       </button>
+      <button class="ghost-btn" :disabled="loading" @tap="handleSkip">暂不登录</button>
     </view>
   </view>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { login } from '../../utils/auth.js'
+import { loginWithPhone } from '../../utils/auth.js'
+import { toastResultError } from '../../utils/api-error.js'
+import {
+  getLoginRedirectNavMethod,
+  normalizeLoginRedirectUrl
+} from '../../utils/navigation.js'
 
 const loading = ref(false)
 const redirect = ref('/pages/mine/index')
@@ -22,7 +37,6 @@ function readRedirectFromQuery() {
   const current = pages?.[pages.length - 1]
   const options = current?.options || {}
   if (options.redirect) {
-    // redirect 可能带 encodeURIComponent，做一次解码
     try {
       redirect.value = decodeURIComponent(options.redirect)
     } catch (e) {
@@ -31,19 +45,50 @@ function readRedirectFromQuery() {
   }
 }
 
+function navigateAfterLogin() {
+  const app = typeof getApp === 'function' ? getApp() : null
+  const method = getLoginRedirectNavMethod(redirect.value, app)
+  const url = normalizeLoginRedirectUrl(redirect.value, method)
+  if (method === 'switchTab') {
+    uni.switchTab({ url })
+  } else {
+    uni.redirectTo({ url })
+  }
+}
+
 onMounted(() => {
   readRedirectFromQuery()
 })
 
-async function handleLogin() {
+function handleMaskTap() {
   if (loading.value) return
+  uni.navigateBack({ fail: () => {} })
+}
+
+function handleSkip() {
+  if (loading.value) return
+  uni.navigateBack({ fail: () => {} })
+}
+
+async function handleGetPhoneNumber(e) {
+  if (loading.value) return
+  const detail = e?.detail || {}
+  const errMsg = detail.errMsg || ''
+  if (errMsg && !errMsg.includes('ok')) {
+    uni.showToast({ title: '需要授权手机号才能登录', icon: 'none' })
+    return
+  }
+  const phoneCode = detail.code
+  if (!phoneCode) {
+    uni.showToast({ title: '未获取到手机号凭证，请重试', icon: 'none' })
+    return
+  }
   loading.value = true
   try {
-    await login()
-    uni.redirectTo({ url: redirect.value })
-  } catch (e) {
-    const msg = e?.message || '登录失败，请重试'
-    uni.showToast({ title: msg, icon: 'none' })
+    await loginWithPhone(phoneCode)
+    navigateAfterLogin()
+  } catch (err) {
+    toastResultError(err, { fallback: '登录失败，请重试' })
   } finally {
     loading.value = false
   }
@@ -51,42 +96,74 @@ async function handleLogin() {
 </script>
 
 <style scoped>
-.login-page {
+.login-root {
   min-height: 100vh;
-  background-color: #f7f8fa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32rpx;
+  position: relative;
+  background: transparent;
 }
-.card {
-  width: 100%;
-  max-width: 600rpx;
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
   background: #ffffff;
-  border-radius: 24rpx;
-  padding: 40rpx 32rpx;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.04);
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 24rpx 40rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -8rpx 32rpx rgba(0, 0, 0, 0.08);
+}
+.sheet-handle {
+  width: 72rpx;
+  height: 8rpx;
+  border-radius: 4rpx;
+  background: #e5e5e5;
+  margin: 8rpx auto 28rpx;
 }
 .title {
   display: block;
   font-size: 36rpx;
   font-weight: 700;
   color: #333;
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
 }
 .desc {
   display: block;
   font-size: 26rpx;
   color: #999;
-  line-height: 1.5;
+  line-height: 1.55;
   margin-bottom: 40rpx;
 }
-.login-btn {
+.primary-btn {
   width: 100%;
   height: 88rpx;
   line-height: 88rpx;
-  background: #02b282;
-  color: #ffffff;
+  background: #02b282 !important;
+  color: #ffffff !important;
   border-radius: 44rpx;
+  border: none;
+  font-size: 30rpx;
+}
+.primary-btn::after {
+  border: none;
+}
+.ghost-btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  margin-top: 24rpx;
+  background: transparent;
+  color: #666;
+  border-radius: 44rpx;
+  border: none;
+  font-size: 28rpx;
+}
+.ghost-btn::after {
+  border: none;
 }
 </style>

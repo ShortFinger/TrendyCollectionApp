@@ -22,6 +22,25 @@ export async function login() {
   return data.user
 }
 
+/** 一步登录：需先通过 button open-type="getPhoneNumber" 取得 phoneCode，再调用本方法（内部会 wx.login） */
+export async function loginWithPhone(phoneCode) {
+  let loginRes
+  try {
+    loginRes = await uni.login({ provider: 'weixin' })
+  } catch (e) {
+    throw new Error('wx.login failed')
+  }
+  const data = await request({
+    url: '/auth/loginWithPhone',
+    method: 'POST',
+    data: { loginCode: loginRes.code, phoneCode },
+    header: { 'X-Mini-App-Key': WX_MINI_APP_KEY }
+  })
+  setTokens(data.accessToken, data.refreshToken)
+  setUser(data.user)
+  return data.user
+}
+
 export async function fetchMe() {
   const data = await request({ url: '/auth/me' })
   setUser(data)
