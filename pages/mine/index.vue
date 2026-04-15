@@ -116,6 +116,13 @@
         </view>
       </view>
 
+      <!-- 退出登录 -->
+      <view v-if="showLogout" class="section-card logout-card">
+        <view class="logout-row" @tap="onLogoutTap">
+          <text class="logout-text">退出登录</text>
+        </view>
+      </view>
+
       <!-- 底部预留空间 -->
       <view class="bottom-safe" />
     </scroll-view>
@@ -125,10 +132,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { state as userState } from '../../store/user.js'
-import { updateProfile, requirePhone, fetchMe } from '../../utils/auth.js'
+import { updateProfile, requirePhone, fetchMe, logout } from '../../utils/auth.js'
 import { getToken } from '../../utils/request.js'
 
 const showEditProfile = ref(false)
+const showLogout = ref(false)
 const editNickname = ref('')
 const editAvatarUrl = ref('')
 
@@ -170,6 +178,8 @@ onMounted(async () => {
     })
     return
   }
+
+  showLogout.value = true
 
   // 已有 token：尽量确保用户态可用（避免依赖 App.vue 的执行时序）
   if (!userState.user) {
@@ -226,6 +236,33 @@ function onFuncTap(key) {
   if (key === 'edit-profile') {
     onEditAvatar()
   }
+}
+
+function onLogoutTap() {
+  uni.showModal({
+    title: '提示',
+    content: '确定退出登录？',
+    success: async (res) => {
+      if (!res.confirm) return
+      showLogout.value = false
+      try {
+        await logout()
+        uni.switchTab({
+          url: '/pages/index/index',
+          fail: () => {
+            uni.showToast({ title: '切换页面失败', icon: 'none' })
+          }
+        })
+      } catch (e) {
+        uni.switchTab({
+          url: '/pages/index/index',
+          fail: () => {
+            uni.showToast({ title: '切换页面失败', icon: 'none' })
+          }
+        })
+      }
+    }
+  })
 }
 </script>
 
@@ -578,5 +615,21 @@ function onFuncTap(key) {
 
 .bottom-safe {
   height: 32rpx;
+}
+
+.logout-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+}
+
+.logout-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-text {
+  font-size: 28rpx;
+  color: #ff4d4f;
 }
 </style>
