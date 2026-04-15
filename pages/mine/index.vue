@@ -130,7 +130,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { state as userState } from '../../store/user.js'
 import { updateProfile, requirePhone, fetchMe, logout } from '../../utils/auth.js'
 import { getToken } from '../../utils/request.js'
@@ -169,10 +170,11 @@ const funcList = [
   { key: 'service', label: '客服中心', icon: '🔒', bgColor: '#f0f1ff' }
 ]
 
-onMounted(async () => {
-  // 未登录：mine 不允许进入，直接跳登录页
+// Tab 页会被缓存：从其它 Tab 切回「我的」时不会再次 onMounted，须用 onShow 每次校验登录态
+onShow(async () => {
   const token = getToken()
   if (!token) {
+    showLogout.value = false
     uni.navigateTo({
       url: '/pages/login/index?redirect=' + encodeURIComponent('/pages/mine/index')
     })
@@ -181,7 +183,6 @@ onMounted(async () => {
 
   showLogout.value = true
 
-  // 已有 token：尽量确保用户态可用（避免依赖 App.vue 的执行时序）
   if (!userState.user) {
     try {
       await fetchMe()
