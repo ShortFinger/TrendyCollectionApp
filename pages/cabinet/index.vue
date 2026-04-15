@@ -43,9 +43,6 @@
     <view class="bottom-bar" v-if="currentTab === 'IN_CABINET'">
       <text class="selected-count">已选 {{ selectedIds.length }} 件</text>
       <view class="btn-row">
-        <button class="btn plain" :disabled="selectedIds.length === 0 || submitting" @tap="onReceive">
-          标记领取
-        </button>
         <button class="btn black" :disabled="selectedIds.length === 0 || submitting" @tap="onCreateShipOrder">
           合并发货
         </button>
@@ -58,14 +55,12 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import {
-  batchReceivePrizeAssets,
   createPrizeShipOrder,
   pagePrizeAssets
 } from '@/utils/cabinetApi.js'
 
 const tabs = [
-  { key: 'IN_CABINET', label: '在柜' },
-  { key: 'RECEIVED', label: '已领取' }
+  { key: 'IN_CABINET', label: '在柜' }
 ]
 
 const currentTab = ref('IN_CABINET')
@@ -125,24 +120,6 @@ function toggleSelect(assetId) {
   selectedMap.value = {
     ...selectedMap.value,
     [assetId]: !selectedMap.value[assetId]
-  }
-}
-
-async function onReceive() {
-  if (selectedIds.value.length === 0 || submitting.value) return
-  submitting.value = true
-  try {
-    const data = await batchReceivePrizeAssets(selectedIds.value)
-    const failCount = Array.isArray(data?.failItems) ? data.failItems.length : 0
-    uni.showToast({
-      title: failCount > 0 ? `成功${data.successCount}，失败${failCount}` : `已领取 ${data.successCount} 件`,
-      icon: 'none'
-    })
-    await load(true)
-  } catch (err) {
-    uni.showToast({ title: err?.message || '领取失败', icon: 'none' })
-  } finally {
-    submitting.value = false
   }
 }
 
@@ -261,7 +238,7 @@ onShow(() => {
   bottom: 0;
   background: #fff;
   box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.06);
-  padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
+  padding: 14rpx 24rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -284,11 +261,6 @@ onShow(() => {
   font-size: 24rpx;
   line-height: 1;
   padding: 20rpx 10rpx;
-}
-
-.btn.plain {
-  background: #f0f0f0;
-  color: #333;
 }
 
 .btn.black {
