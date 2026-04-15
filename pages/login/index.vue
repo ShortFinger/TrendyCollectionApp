@@ -1,5 +1,15 @@
 <template>
   <view class="login-root">
+    <!-- 自定义导航：左上角返回与「暂不登录」一致，走 dismissLogin（系统默认返回无法在微信端可靠拦截） -->
+    <view class="login-nav" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="login-nav-inner">
+        <view class="login-nav-back" @tap="dismissLogin">
+          <text class="login-nav-back-icon">‹</text>
+        </view>
+        <text class="login-nav-title">登录</text>
+        <view class="login-nav-placeholder" />
+      </view>
+    </view>
     <view class="mask" @tap="handleMaskTap" />
     <view class="sheet" @tap.stop>
       <view class="sheet-handle" />
@@ -31,6 +41,7 @@ import {
 
 const loading = ref(false)
 const redirect = ref('/pages/mine/index')
+const statusBarHeight = ref(20)
 
 function readRedirectFromQuery() {
   const pages = getCurrentPages()
@@ -86,6 +97,11 @@ function dismissLogin() {
 
 onMounted(() => {
   readRedirectFromQuery()
+  try {
+    statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20
+  } catch (e) {
+    statusBarHeight.value = 20
+  }
 })
 
 function handleMaskTap() {
@@ -126,6 +142,48 @@ async function handleGetPhoneNumber(e) {
   min-height: 100vh;
   position: relative;
   background: transparent;
+}
+
+.login-nav {
+  position: relative;
+  z-index: 102;
+  background: #ffffff;
+}
+
+.login-nav-inner {
+  height: 88rpx;
+  flex-direction: row;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16rpx;
+}
+
+.login-nav-back {
+  width: 80rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.login-nav-back-icon {
+  font-size: 56rpx;
+  color: #333333;
+  line-height: 1;
+  font-weight: 300;
+}
+
+.login-nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #333333;
+}
+
+.login-nav-placeholder {
+  width: 80rpx;
 }
 .mask {
   position: fixed;
