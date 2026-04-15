@@ -39,6 +39,12 @@
       }
     },
     {
+      "path": "pages/cabinet/index",
+      "style": {
+        "navigationBarTitleText": "盒柜"
+      }
+    },
+    {
       "path": "pages/login/index",
       "style": {
         "navigationBarTitleText": "登录"
@@ -82,8 +88,8 @@
         "selectedIconPath": "static/tab/category-active.png"
       },
       {
-        "pagePath": "pages/ichibanKuji/index",
-        "text": "赏柜",
+        "pagePath": "pages/cabinet/index",
+        "text": "盒柜",
         "iconPath": "static/tab/box.png",
         "selectedIconPath": "static/tab/box-active.png"
       },

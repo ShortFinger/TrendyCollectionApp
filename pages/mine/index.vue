@@ -155,6 +155,7 @@ const orderList = [
 
 const funcList = [
   { key: 'address', label: '收货地址', icon: '📍', bgColor: '#e7f8ed' },
+  { key: 'cabinet', label: '盒柜', icon: '🗃️', bgColor: '#e9f0ff' },
   { key: 'favorite', label: '我的收藏', icon: '❤', bgColor: '#ffeef0' },
   { key: 'edit-profile', label: '编辑资料', icon: '✏️', bgColor: '#e8f4ff' },
   { key: 'service', label: '客服中心', icon: '🔒', bgColor: '#f0f1ff' }
@@ -218,6 +219,10 @@ async function onBindPhone() {
 }
 
 function onFuncTap(key) {
+  if (key === 'cabinet') {
+    uni.navigateTo({ url: '/pages/cabinet/index' })
+    return
+  }
   if (key === 'edit-profile') {
     onEditAvatar()
   }
