@@ -56,18 +56,44 @@ function navigateAfterLogin() {
   }
 }
 
+/** 关闭登录：navigateBack 回到「我的」且无 token 时，会再次触发我的 onShow → 反复打开登录页 */
+function dismissLogin() {
+  if (loading.value) return
+  const app = typeof getApp === 'function' ? getApp() : null
+  const method = getLoginRedirectNavMethod(redirect.value, app)
+  const url = normalizeLoginRedirectUrl(redirect.value, method)
+
+  if (method === 'switchTab') {
+    if (url === '/pages/mine/index' || url.startsWith('/pages/mine/')) {
+      uni.switchTab({ url: '/pages/index/index' })
+      return
+    }
+    uni.switchTab({
+      url,
+      fail: () => {
+        uni.switchTab({ url: '/pages/index/index' })
+      }
+    })
+    return
+  }
+
+  uni.navigateBack({
+    fail: () => {
+      uni.switchTab({ url: '/pages/index/index' })
+    }
+  })
+}
+
 onMounted(() => {
   readRedirectFromQuery()
 })
 
 function handleMaskTap() {
-  if (loading.value) return
-  uni.navigateBack({ fail: () => {} })
+  dismissLogin()
 }
 
 function handleSkip() {
-  if (loading.value) return
-  uni.navigateBack({ fail: () => {} })
+  dismissLogin()
 }
 
 async function handleGetPhoneNumber(e) {
