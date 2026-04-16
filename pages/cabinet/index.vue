@@ -39,7 +39,7 @@
             >
               <button
                 class="btn smelt"
-                :disabled="smeltingId === item.assetId"
+                :disabled="smeltingId === item.assetId || smeltingBatch"
                 @tap="onSmelt(item)"
               >
                 熔炼
@@ -56,7 +56,14 @@
     <view class="bottom-bar" v-if="currentTab === 'IN_CABINET'">
       <text class="selected-count">已选 {{ selectedIds.length }} 件</text>
       <view class="btn-row">
-        <button class="btn black" :disabled="selectedIds.length === 0 || submitting" @tap="onCreateShipOrder">
+        <button
+          class="btn smelt-bar"
+          :disabled="selectedInCabinetIds.length === 0 || submitting || smeltingBatch"
+          @tap="onSmeltSelected"
+        >
+          熔炼
+        </button>
+        <button class="btn black" :disabled="selectedIds.length === 0 || submitting || smeltingBatch" @tap="onCreateShipOrder">
           合并发货
         </button>
       </view>
@@ -85,10 +92,19 @@ const total = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
+const smeltingBatch = ref(false)
 const smeltingId = ref('')
 const selectedMap = ref({})
 
 const selectedIds = computed(() => Object.keys(selectedMap.value).filter((k) => selectedMap.value[k]))
+
+/** 已勾选且当前列表中仍为在柜的 assetId（批量熔炼仅处理这些） */
+const selectedInCabinetIds = computed(() => {
+  const inCabinet = new Set(
+    list.value.filter((i) => i.assetStatus === 'IN_CABINET').map((i) => i.assetId)
+  )
+  return selectedIds.value.filter((id) => inCabinet.has(id))
+})
 
 function clearSelection() {
   selectedMap.value = {}
@@ -163,8 +179,64 @@ function smeltConfirmContent() {
   ].join('')
 }
 
+function smeltBatchConfirmContent(n) {
+  return [
+    `将对已选的 ${n} 件在柜物品依次熔炼（每件单独提交）。`,
+    '规则与单件熔炼相同：按回收价兑换秘银，四舍五入；不可撤销。',
+    '若中途失败，已成功件不会回滚，请留意结果提示。',
+    '是否继续？'
+  ].join('')
+}
+
+async function onSmeltSelected() {
+  const ids = [...selectedInCabinetIds.value]
+  if (ids.length === 0 || smeltingBatch.value || submitting.value) return
+  uni.showModal({
+    title: '批量熔炼',
+    content: smeltBatchConfirmContent(ids.length),
+    confirmText: '开始熔炼',
+    cancelText: '取消',
+    success: async (res) => {
+      if (!res.confirm) return
+      smeltingBatch.value = true
+      let ok = 0
+      let fail = 0
+      let totalDelta = 0
+      let lastMsg = ''
+      try {
+        for (const assetId of ids) {
+          try {
+            const data = await smeltPrizeAsset(assetId)
+            totalDelta += Number(data?.mithrilDelta ?? 0)
+            ok += 1
+          } catch (err) {
+            fail += 1
+            lastMsg = err?.message || '熔炼失败'
+          }
+        }
+        if (fail === 0) {
+          uni.showToast({
+            title: `${ok} 件已熔炼，共获得 ${totalDelta} 秘银`,
+            icon: 'none',
+            duration: 2500
+          })
+        } else {
+          uni.showToast({
+            title: `成功 ${ok}，失败 ${fail}${lastMsg ? `：${lastMsg}` : ''}`,
+            icon: 'none',
+            duration: 3000
+          })
+        }
+        await load(true)
+      } finally {
+        smeltingBatch.value = false
+      }
+    }
+  })
+}
+
 function onSmelt(item) {
-  if (!item?.assetId || item.assetStatus !== 'IN_CABINET' || smeltingId.value) return
+  if (!item?.assetId || item.assetStatus !== 'IN_CABINET' || smeltingId.value || smeltingBatch.value) return
   uni.showModal({
     title: '确认熔炼',
     content: smeltConfirmContent(),
@@ -340,5 +412,17 @@ onShow(() => {
 
 .btn.smelt[disabled] {
   opacity: 0.5;
+}
+
+.btn.smelt-bar {
+  min-width: 140rpx;
+  margin: 0;
+  background: #fff;
+  color: #333;
+  border: 2rpx solid #ccc;
+}
+
+.btn.smelt-bar[disabled] {
+  opacity: 0.45;
 }
 </style>
