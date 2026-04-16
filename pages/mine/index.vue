@@ -152,21 +152,18 @@ const maskedPhone = computed(() => {
 const assetList = ref([
   { key: 'points', label: '积分', value: '0' },
   { key: 'coupon', label: '优惠券', value: '0' },
-  { key: 'balance', label: '余额', value: '¥0' }
+  { key: 'balance', label: '秘银', value: '0' }
 ])
 
 const orderList = [
-  { key: 'pay', label: '待付款', icon: '💰' },
-  { key: 'receive', label: '待收货', icon: '📦' },
-  { key: 'comment', label: '待评价', icon: '📝' },
+  { key: 'all', label: '全部订单', icon: '💰' },
+  { key: 'receive', label: '待发货', icon: '📦' },
+  { key: 'comment', label: '待收货', icon: '📝' },
   { key: 'after', label: '退换/售后', icon: '♻️' }
 ]
 
 const funcList = [
   { key: 'address', label: '收货地址', icon: '📍', bgColor: '#e7f8ed' },
-  { key: 'cabinet', label: '盒柜', icon: '🗃️', bgColor: '#e9f0ff' },
-  { key: 'favorite', label: '我的收藏', icon: '❤', bgColor: '#ffeef0' },
-  { key: 'edit-profile', label: '编辑资料', icon: '✏️', bgColor: '#e8f4ff' },
   { key: 'service', label: '客服中心', icon: '🔒', bgColor: '#f0f1ff' }
 ]
 
@@ -176,7 +173,7 @@ onShow(async () => {
   if (!token) {
     showLogout.value = false
     uni.navigateTo({
-      url: '/pages/login/index?redirect=' + encodeURIComponent('/pages/mine/index')
+      url: '/pages/login/index'
     })
     return
   }

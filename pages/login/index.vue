@@ -35,12 +35,13 @@ import { ref, onMounted } from 'vue'
 import { loginWithPhone } from '../../utils/auth.js'
 import { toastResultError } from '../../utils/api-error.js'
 import {
+  completeLoginNavigation,
   getLoginRedirectNavMethod,
   normalizeLoginRedirectUrl
 } from '../../utils/navigation.js'
 
 const loading = ref(false)
-const redirect = ref('/pages/mine/index')
+const redirect = ref('')
 const statusBarHeight = ref(20)
 
 function readRedirectFromQuery() {
@@ -58,19 +59,21 @@ function readRedirectFromQuery() {
 
 function navigateAfterLogin() {
   const app = typeof getApp === 'function' ? getApp() : null
-  const method = getLoginRedirectNavMethod(redirect.value, app)
-  const url = normalizeLoginRedirectUrl(redirect.value, method)
-  if (method === 'switchTab') {
-    uni.switchTab({ url })
-  } else {
-    uni.redirectTo({ url })
-  }
+  completeLoginNavigation(redirect.value, app)
 }
 
 /** 关闭登录：navigateBack 回到「我的」且无 token 时，会再次触发我的 onShow → 反复打开登录页 */
 function dismissLogin() {
   if (loading.value) return
   const app = typeof getApp === 'function' ? getApp() : null
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  const prev = pages.length >= 2 ? pages[pages.length - 2] : null
+  const prevRoute = prev?.route ? String(prev.route).replace(/^\//, '') : ''
+  if (prevRoute === 'pages/mine/index') {
+    uni.switchTab({ url: '/pages/index/index' })
+    return
+  }
+
   const method = getLoginRedirectNavMethod(redirect.value, app)
   const url = normalizeLoginRedirectUrl(redirect.value, method)
 

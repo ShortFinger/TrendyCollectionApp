@@ -23,12 +23,67 @@ export function getLoginRedirectNavMethod(url, app) {
   return isTabBarPath(url, app) ? 'switchTab' : 'redirectTo'
 }
 
+const DEFAULT_LOGIN_FALLBACK = '/pages/index/index'
+
 export function normalizeLoginRedirectUrl(url, navMethod) {
   const trimmed = (url || '').trim()
-  if (!trimmed) return '/pages/mine/index'
+  if (!trimmed) return DEFAULT_LOGIN_FALLBACK
   if (navMethod === 'switchTab') {
     const path = stripPath(trimmed)
-    return path || '/pages/mine/index'
+    return path || DEFAULT_LOGIN_FALLBACK
   }
   return trimmed
+}
+
+function navigateLoginFallback(redirectUrl, app) {
+  const method = getLoginRedirectNavMethod(redirectUrl, app)
+  const url = normalizeLoginRedirectUrl(redirectUrl, method)
+  if (method === 'switchTab') {
+    uni.switchTab({
+      url,
+      fail: () => {
+        uni.switchTab({ url: DEFAULT_LOGIN_FALLBACK })
+      }
+    })
+  } else {
+    uni.redirectTo({
+      url,
+      fail: () => {
+        uni.switchTab({ url: DEFAULT_LOGIN_FALLBACK })
+      }
+    })
+  }
+}
+
+/**
+ * 登录成功：优先返回打开登录页的上一页；无法 back 时用 redirectUrl + tab/redirect 兜底。
+ */
+export function completeLoginNavigation(redirectUrl, app) {
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  if (pages.length >= 2) {
+    uni.navigateBack({
+      delta: 1,
+      fail: () => {
+        navigateLoginFallback(redirectUrl, app)
+      }
+    })
+    return
+  }
+  navigateLoginFallback(redirectUrl, app)
+}
+
+/** 当前页路径 + query，供登录 redirect 兜底（如 401 打开登录且无法 navigateBack） */
+export function buildCurrentPageLoginRedirect() {
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  const cur = pages?.[pages.length - 1]
+  const route = cur?.route
+  if (!route) return ''
+  const path = route.startsWith('/') ? route : `/${route}`
+  const opts = cur.options || {}
+  const keys = Object.keys(opts).filter((k) => k !== 'redirect')
+  if (!keys.length) return path
+  const qs = keys
+    .map((k) => `${encodeURIComponent(k)}=${encodeURIComponent(opts[k] ?? '')}`)
+    .join('&')
+  return `${path}?${qs}`
 }

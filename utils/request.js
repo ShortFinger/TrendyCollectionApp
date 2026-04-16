@@ -1,4 +1,5 @@
 import { clearUser } from '../store/user.js'
+import { buildCurrentPageLoginRedirect } from './navigation.js'
 
 // 多服务 base URL 配置
 const API_BASE = {
@@ -101,9 +102,11 @@ export function request(options) {
               // 避免并发 401 导致多次跳转登录页
               if (!hasNavigatedToLogin) {
                 hasNavigatedToLogin = true
-                uni.navigateTo({
-                  url: '/pages/login/index?redirect=' + encodeURIComponent('/pages/mine/index')
-                })
+                const ret = buildCurrentPageLoginRedirect()
+                const loginUrl = ret
+                  ? `/pages/login/index?redirect=${encodeURIComponent(ret)}`
+                  : '/pages/login/index'
+                uni.navigateTo({ url: loginUrl })
                 setTimeout(() => {
                   hasNavigatedToLogin = false
                 }, 5000)
