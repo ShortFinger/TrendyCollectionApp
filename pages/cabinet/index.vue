@@ -64,7 +64,7 @@ import { onShow } from '@dcloudio/uni-app'
 import {
   createPrizeShipOrder,
   pagePrizeAssets,
-  smeltPrizeAsset
+  smeltPrizeAssets
 } from '@/utils/cabinetApi.js'
 
 const tabs = [
@@ -160,59 +160,44 @@ async function onCreateShipOrder() {
 function smeltConfirmContent(n) {
   const head =
     n === 1
-      ? '将对当前选中的 1 件在柜物品熔炼。'
-      : `将对已选的 ${n} 件在柜物品依次熔炼（每件单独提交）。`
+      ? '将对当前选中的 1 件在柜物品发起熔炼。'
+      : `将对已选的 ${n} 件在柜物品一次性提交熔炼。`
   return [
     head,
     '按回收价兑换秘银（四舍五入到整数）；回收价为 0 或空时获得 0 秘银。',
-    '此操作不可撤销。',
-    n > 1 ? '若中途失败，已成功件不会回滚，请留意结果提示。' : '',
+    '此操作不可撤销；任一件校验失败则整单不会生效。',
     '是否继续？'
-  ]
-    .filter(Boolean)
-    .join('')
+  ].join('')
 }
 
 async function onSmeltSelected() {
   const ids = [...selectedInCabinetIds.value]
   if (ids.length === 0 || smeltingBatch.value || submitting.value) return
   uni.showModal({
-    title: ids.length === 1 ? '确认熔炼' : '批量熔炼',
+    title: '确认熔炼',
     content: smeltConfirmContent(ids.length),
     confirmText: '开始熔炼',
     cancelText: '取消',
     success: async (res) => {
       if (!res.confirm) return
       smeltingBatch.value = true
-      let ok = 0
-      let fail = 0
-      let totalDelta = 0
-      let lastMsg = ''
       try {
-        for (const assetId of ids) {
-          try {
-            const data = await smeltPrizeAsset(assetId)
-            totalDelta += Number(data?.mithrilDelta ?? 0)
-            ok += 1
-          } catch (err) {
-            fail += 1
-            lastMsg = err?.message || '熔炼失败'
-          }
+        const data = await smeltPrizeAssets(ids)
+        const smelted = Number(data?.smeltedCount ?? 0)
+        const skipped = Number(data?.skippedCount ?? 0)
+        const totalDelta = Number(data?.mithrilDelta ?? 0)
+        let title = `${smelted} 件已熔炼，共获得 ${totalDelta} 秘银`
+        if (skipped > 0) {
+          title += `（已跳过 ${skipped} 件）`
         }
-        if (fail === 0) {
-          uni.showToast({
-            title: `${ok} 件已熔炼，共获得 ${totalDelta} 秘银`,
-            icon: 'none',
-            duration: 2500
-          })
-        } else {
-          uni.showToast({
-            title: `成功 ${ok}，失败 ${fail}${lastMsg ? `：${lastMsg}` : ''}`,
-            icon: 'none',
-            duration: 3000
-          })
-        }
+        uni.showToast({
+          title,
+          icon: 'none',
+          duration: skipped > 0 ? 3000 : 2500
+        })
         await load(true)
+      } catch (err) {
+        uni.showToast({ title: err?.message || '熔炼失败', icon: 'none' })
       } finally {
         smeltingBatch.value = false
       }
