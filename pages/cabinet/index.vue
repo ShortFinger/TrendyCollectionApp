@@ -32,6 +32,19 @@
             <text class="sub">活动: {{ item.activityId }}</text>
             <text class="sub">类型: {{ item.recordType }} | 状态: {{ item.assetStatus }}</text>
             <text class="sub">入柜时间: {{ item.createTime }}</text>
+            <view
+              v-if="item.assetStatus === 'IN_CABINET'"
+              class="card-actions"
+              @tap.stop
+            >
+              <button
+                class="btn smelt"
+                :disabled="smeltingId === item.assetId"
+                @tap="onSmelt(item)"
+              >
+                熔炼
+              </button>
+            </view>
           </view>
         </view>
       </view>
@@ -56,7 +69,8 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import {
   createPrizeShipOrder,
-  pagePrizeAssets
+  pagePrizeAssets,
+  smeltPrizeAsset
 } from '@/utils/cabinetApi.js'
 
 const tabs = [
@@ -71,6 +85,7 @@ const total = ref(0)
 const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
+const smeltingId = ref('')
 const selectedMap = ref({})
 
 const selectedIds = computed(() => Object.keys(selectedMap.value).filter((k) => selectedMap.value[k]))
@@ -138,6 +153,44 @@ async function onCreateShipOrder() {
   } finally {
     submitting.value = false
   }
+}
+
+function smeltConfirmContent() {
+  return [
+    '熔炼后该奖品将标记为已熔炼，并按回收价兑换秘银（四舍五入到整数，与实付秘银同单位）。',
+    '回收价为 0 或空时，将获得 0 秘银。',
+    '此操作不可撤销。是否继续？'
+  ].join('')
+}
+
+function onSmelt(item) {
+  if (!item?.assetId || item.assetStatus !== 'IN_CABINET' || smeltingId.value) return
+  uni.showModal({
+    title: '确认熔炼',
+    content: smeltConfirmContent(),
+    confirmText: '熔炼',
+    cancelText: '取消',
+    success: async (res) => {
+      if (!res.confirm) return
+      smeltingId.value = item.assetId
+      try {
+        const data = await smeltPrizeAsset(item.assetId)
+        const delta = Number(data?.mithrilDelta ?? 0)
+        uni.showToast({
+          title: `获得 ${delta} 秘银`,
+          icon: 'none'
+        })
+        const nextSel = { ...selectedMap.value }
+        delete nextSel[item.assetId]
+        selectedMap.value = nextSel
+        await load(true)
+      } catch (err) {
+        uni.showToast({ title: err?.message || '熔炼失败', icon: 'none' })
+      } finally {
+        smeltingId.value = ''
+      }
+    }
+  })
 }
 
 onShow(() => {
@@ -266,5 +319,26 @@ onShow(() => {
 .btn.black {
   background: #111;
   color: #fff;
+}
+
+.card-actions {
+  margin-top: 12rpx;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn.smelt {
+  min-width: 0;
+  margin: 0;
+  padding: 14rpx 28rpx;
+  font-size: 22rpx;
+  border-radius: 999rpx;
+  background: #fff;
+  color: #333;
+  border: 2rpx solid #ccc;
+}
+
+.btn.smelt[disabled] {
+  opacity: 0.5;
 }
 </style>
