@@ -27,10 +27,19 @@ export function createPrizeShipOrder(assetIds, remark = '') {
 
 /** 已选在柜奖品一次性熔炼为秘银（需登录，Bearer token） */
 export function smeltPrizeAssets(assetIds) {
+  const list = Array.isArray(assetIds) ? assetIds : []
   return request({
     base: API_BASE.order,
     url: '/api/prize-assets/smelt',
     method: 'POST',
-    data: { assetIds }
+    data: { assetIds: list }
   })
+}
+
+/**
+ * 单件熔炼（兼容旧代码或分包缓存仍引用此名）。
+ * 与 {@link smeltPrizeAssets}([id]) 等价。
+ */
+export function smeltPrizeAsset(assetId) {
+  return smeltPrizeAssets(assetId == null ? [] : [assetId])
 }
