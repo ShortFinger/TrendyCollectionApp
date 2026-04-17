@@ -24,18 +24,21 @@
           <text v-if="legalRetryCount >= 3" class="legal-help-text">若多次重试仍失败，请稍后再试或联系客服。</text>
         </view>
         <view v-else class="legal-ok">
-          <view class="legal-links">
-            <text
+          <checkbox-group
+            :key="agreeGroupKey"
+            class="legal-check-group"
+            @change="onAgreeChange"
+          >
+            <label
               v-for="item in legalItems"
               :key="item.documentId"
-              class="legal-link"
-              @tap.stop="openLegalDoc(item)"
-            >《{{ item.title }}》</text>
-          </view>
-          <checkbox-group class="legal-check-group" @change="onAgreeChange">
-            <label class="legal-check-label">
-              <checkbox value="agree" :checked="agreed" color="#02b282" />
-              <text class="legal-check-text">我已阅读并同意上述全部协议</text>
+              class="legal-row"
+            >
+              <checkbox :value="item.documentId" color="#02b282" />
+              <view class="legal-row-text-wrap">
+                <text class="legal-row-prefix">我已阅读并同意</text>
+                <text class="legal-link" @tap.stop="openLegalDoc(item)">《{{ item.title }}》</text>
+              </view>
             </label>
           </checkbox-group>
         </view>
@@ -77,13 +80,23 @@ const legalLoadState = ref('loading')
 const legalItems = ref([])
 const legalErrorText = ref('')
 const legalRetryCount = ref(0)
-const agreed = ref(false)
+/** 已勾选的 documentId 列表（与 checkbox-group 的 value 一致） */
+const agreedDocIds = ref([])
+/** 勾选组强制重挂载，便于进入页面时清空勾选态 */
+const agreeGroupKey = ref(0)
 
 const legalGateOk = computed(
   () => legalLoadState.value === 'ok' && legalItems.value.length > 0
 )
+const allLegalChecked = computed(() => {
+  const items = legalItems.value
+  if (!items.length) return false
+  const selected = new Set(agreedDocIds.value)
+  return items.every((it) => it.documentId && selected.has(it.documentId))
+})
+
 const primaryDisabled = computed(
-  () => loading.value || !legalGateOk.value || !agreed.value
+  () => loading.value || !legalGateOk.value || !allLegalChecked.value
 )
 
 async function loadLegalBundle() {
@@ -92,6 +105,8 @@ async function loadLegalBundle() {
   try {
     const list = await fetchRequiredLegalBundle()
     legalItems.value = Array.isArray(list) ? list : []
+    agreedDocIds.value = []
+    agreeGroupKey.value += 1
     legalLoadState.value = 'ok'
     legalRetryCount.value = 0
   } catch (err) {
@@ -102,8 +117,7 @@ async function loadLegalBundle() {
 }
 
 function onAgreeChange(e) {
-  const vals = e?.detail?.value || []
-  agreed.value = vals.includes('agree')
+  agreedDocIds.value = e?.detail?.value ? [...e.detail.value] : []
 }
 
 function openLegalDoc(item) {
@@ -115,7 +129,8 @@ function openLegalDoc(item) {
 }
 
 onShow(() => {
-  agreed.value = false
+  agreedDocIds.value = []
+  agreeGroupKey.value += 1
 })
 
 function readRedirectFromQuery() {
@@ -192,8 +207,8 @@ function handleSkip() {
 
 async function handleGetPhoneNumber(e) {
   if (loading.value) return
-  if (!legalGateOk.value || !agreed.value) {
-    uni.showToast({ title: '请先阅读并勾选协议', icon: 'none' })
+  if (!legalGateOk.value || !allLegalChecked.value) {
+    uni.showToast({ title: '请逐项勾选全部协议', icon: 'none' })
     return
   }
   const detail = e?.detail || {}
@@ -370,32 +385,37 @@ async function handleGetPhoneNumber(e) {
   color: #999;
   line-height: 1.5;
 }
-.legal-links {
+.legal-check-group {
+  width: 100%;
+}
+.legal-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx 20rpx;
+  flex-direction: row;
+  align-items: flex-start;
   margin-bottom: 20rpx;
+}
+.legal-row:last-child {
+  margin-bottom: 0;
+}
+.legal-row-text-wrap {
+  flex: 1;
+  padding-left: 8rpx;
+  padding-top: 2rpx;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  line-height: 1.55;
+}
+.legal-row-prefix {
+  font-size: 24rpx;
+  color: #555;
+  margin-right: 4rpx;
 }
 .legal-link {
   font-size: 24rpx;
   color: #02b282;
-  line-height: 1.4;
   text-decoration: underline;
-}
-.legal-check-group {
-  width: 100%;
-}
-.legal-check-label {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
-}
-.legal-check-text {
-  flex: 1;
-  font-size: 24rpx;
-  color: #555;
-  line-height: 1.5;
-  padding-top: 2rpx;
 }
 .primary-btn[disabled] {
   opacity: 0.45;
