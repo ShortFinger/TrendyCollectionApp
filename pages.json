@@ -52,6 +52,12 @@
       }
     },
     {
+      "path": "pages/legal/document/index",
+      "style": {
+        "navigationBarTitleText": "协议"
+      }
+    },
+    {
       "path": "pages/coupon/index",
       "style": {
         "navigationBarTitleText": "优惠券中心"

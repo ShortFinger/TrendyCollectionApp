@@ -15,12 +15,38 @@
       <view class="sheet-handle" />
       <text class="title">登录</text>
       <text class="desc">授权手机号并完成微信登录后，可使用「我的」等需要账号的功能。</text>
+
+      <view class="legal-block">
+        <view v-if="legalLoadState === 'loading'" class="legal-hint">正在加载协议…</view>
+        <view v-else-if="legalLoadState === 'error'" class="legal-err-box">
+          <text class="legal-err-text">{{ legalErrorText }}</text>
+          <button class="legal-retry-btn" @tap="loadLegalBundle">重试</button>
+          <text v-if="legalRetryCount >= 3" class="legal-help-text">若多次重试仍失败，请稍后再试或联系客服。</text>
+        </view>
+        <view v-else class="legal-ok">
+          <view class="legal-links">
+            <text
+              v-for="item in legalItems"
+              :key="item.documentId"
+              class="legal-link"
+              @tap.stop="openLegalDoc(item)"
+            >《{{ item.title }}》</text>
+          </view>
+          <checkbox-group class="legal-check-group" @change="onAgreeChange">
+            <label class="legal-check-label">
+              <checkbox value="agree" :checked="agreed" color="#02b282" />
+              <text class="legal-check-text">我已阅读并同意上述全部协议</text>
+            </label>
+          </checkbox-group>
+        </view>
+      </view>
+
       <button
         class="primary-btn"
         type="primary"
         open-type="getPhoneNumber"
         :loading="loading"
-        :disabled="loading"
+        :disabled="primaryDisabled"
         @getphonenumber="handleGetPhoneNumber"
       >
         授权手机号并登录
@@ -31,9 +57,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import { loginWithPhone } from '../../utils/auth.js'
 import { toastResultError } from '../../utils/api-error.js'
+import { fetchRequiredLegalBundle } from '../../utils/legalPublishedApi.js'
 import {
   completeLoginNavigation,
   getLoginRedirectNavMethod,
@@ -43,6 +71,52 @@ import {
 const loading = ref(false)
 const redirect = ref('')
 const statusBarHeight = ref(20)
+
+/** 'idle' | 'loading' | 'ok' | 'error' */
+const legalLoadState = ref('loading')
+const legalItems = ref([])
+const legalErrorText = ref('')
+const legalRetryCount = ref(0)
+const agreed = ref(false)
+
+const legalGateOk = computed(
+  () => legalLoadState.value === 'ok' && legalItems.value.length > 0
+)
+const primaryDisabled = computed(
+  () => loading.value || !legalGateOk.value || !agreed.value
+)
+
+async function loadLegalBundle() {
+  legalLoadState.value = 'loading'
+  legalErrorText.value = ''
+  try {
+    const list = await fetchRequiredLegalBundle()
+    legalItems.value = Array.isArray(list) ? list : []
+    legalLoadState.value = 'ok'
+    legalRetryCount.value = 0
+  } catch (err) {
+    legalLoadState.value = 'error'
+    legalRetryCount.value += 1
+    legalErrorText.value = err?.message || '协议加载失败，请重试'
+  }
+}
+
+function onAgreeChange(e) {
+  const vals = e?.detail?.value || []
+  agreed.value = vals.includes('agree')
+}
+
+function openLegalDoc(item) {
+  const id = item?.documentId
+  if (!id) return
+  uni.navigateTo({
+    url: `/pages/legal/document/index?id=${encodeURIComponent(id)}`
+  })
+}
+
+onShow(() => {
+  agreed.value = false
+})
 
 function readRedirectFromQuery() {
   const pages = getCurrentPages()
@@ -100,6 +174,7 @@ function dismissLogin() {
 
 onMounted(() => {
   readRedirectFromQuery()
+  loadLegalBundle()
   try {
     statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20
   } catch (e) {
@@ -117,6 +192,10 @@ function handleSkip() {
 
 async function handleGetPhoneNumber(e) {
   if (loading.value) return
+  if (!legalGateOk.value || !agreed.value) {
+    uni.showToast({ title: '请先阅读并勾选协议', icon: 'none' })
+    return
+  }
   const detail = e?.detail || {}
   const errMsg = detail.errMsg || ''
   if (errMsg && !errMsg.includes('ok')) {
@@ -252,5 +331,73 @@ async function handleGetPhoneNumber(e) {
 }
 .ghost-btn::after {
   border: none;
+}
+
+.legal-block {
+  margin-bottom: 32rpx;
+}
+.legal-hint {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+}
+.legal-err-box {
+  padding: 16rpx 0;
+}
+.legal-err-text {
+  display: block;
+  font-size: 24rpx;
+  color: #c45656;
+  line-height: 1.5;
+  margin-bottom: 16rpx;
+}
+.legal-retry-btn {
+  display: inline-block;
+  padding: 12rpx 32rpx;
+  font-size: 26rpx;
+  color: #02b282;
+  background: #e8f8f3;
+  border-radius: 8rpx;
+  border: none;
+  margin-bottom: 12rpx;
+}
+.legal-retry-btn::after {
+  border: none;
+}
+.legal-help-text {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  line-height: 1.5;
+}
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+.legal-link {
+  font-size: 24rpx;
+  color: #02b282;
+  line-height: 1.4;
+  text-decoration: underline;
+}
+.legal-check-group {
+  width: 100%;
+}
+.legal-check-label {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+.legal-check-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #555;
+  line-height: 1.5;
+  padding-top: 2rpx;
+}
+.primary-btn[disabled] {
+  opacity: 0.45;
 }
 </style>
