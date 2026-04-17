@@ -135,6 +135,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { state as userState } from '../../store/user.js'
 import { updateProfile, requirePhone, fetchMe, logout } from '../../utils/auth.js'
 import { getToken } from '../../utils/request.js'
+import { isLoginPageInStack } from '../../utils/page-stack.js'
 
 const showEditProfile = ref(false)
 const showLogout = ref(false)
@@ -172,6 +173,10 @@ onShow(async () => {
   const token = getToken()
   if (!token) {
     showLogout.value = false
+    // 栈里已有登录页时不再 push，避免叠多层登录或反复切换
+    if (isLoginPageInStack()) {
+      return
+    }
     uni.navigateTo({
       url: '/pages/login/index'
     })

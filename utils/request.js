@@ -1,5 +1,6 @@
 import { clearUser } from '../store/user.js'
 import { buildCurrentPageLoginRedirect } from './navigation.js'
+import { isLoginPageOnTop } from './page-stack.js'
 
 // 多服务 base URL 配置
 const API_BASE = {
@@ -99,8 +100,8 @@ export function request(options) {
               clearTokens()
               clearUser()
 
-              // 避免并发 401 导致多次跳转登录页
-              if (!hasNavigatedToLogin) {
+              // 避免并发 401 导致多次跳转登录页；已在登录页时勿再压栈（会反复「跳出」）
+              if (!hasNavigatedToLogin && !isLoginPageOnTop()) {
                 hasNavigatedToLogin = true
                 const ret = buildCurrentPageLoginRedirect()
                 const loginUrl = ret

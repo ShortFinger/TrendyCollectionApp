@@ -37,7 +37,7 @@
               <checkbox :value="item.documentId" color="#02b282" />
               <view class="legal-row-text-wrap">
                 <text class="legal-row-prefix">我已阅读并同意</text>
-                <text class="legal-link" @tap.stop="openLegalDoc(item)">《{{ item.title }}》</text>
+                <text class="legal-link" @tap.stop="openLegalDoc(item)">{{ item.title }}</text>
               </view>
             </label>
           </checkbox-group>
@@ -61,7 +61,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad } from '@dcloudio/uni-app'
 import { loginWithPhone } from '../../utils/auth.js'
 import { toastResultError } from '../../utils/api-error.js'
 import { fetchRequiredLegalBundle } from '../../utils/legalPublishedApi.js'
@@ -128,23 +128,22 @@ function openLegalDoc(item) {
   })
 }
 
-onShow(() => {
-  agreedDocIds.value = []
-  agreeGroupKey.value += 1
-})
-
-function readRedirectFromQuery() {
-  const pages = getCurrentPages()
-  const current = pages?.[pages.length - 1]
-  const options = current?.options || {}
-  if (options.redirect) {
+/**
+ * 仅在进入登录页时重置勾选（onLoad）；从协议详情页返回时不要 onShow 清空，否则会整页重闪、像反复跳出。
+ */
+onLoad((options) => {
+  redirect.value = ''
+  if (options?.redirect) {
     try {
       redirect.value = decodeURIComponent(options.redirect)
     } catch (e) {
       redirect.value = options.redirect
     }
   }
-}
+  agreedDocIds.value = []
+  agreeGroupKey.value += 1
+  loadLegalBundle()
+})
 
 function navigateAfterLogin() {
   const app = typeof getApp === 'function' ? getApp() : null
@@ -188,8 +187,6 @@ function dismissLogin() {
 }
 
 onMounted(() => {
-  readRedirectFromQuery()
-  loadLegalBundle()
   try {
     statusBarHeight.value = uni.getSystemInfoSync().statusBarHeight || 20
   } catch (e) {
