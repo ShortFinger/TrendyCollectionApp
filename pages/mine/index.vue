@@ -164,7 +164,7 @@ const orderList = [
 ]
 
 const funcList = [
-  { key: 'address', label: '收货地址', icon: '📍', bgColor: '#e7f8ed' },
+  { key: 'address', label: '收货地址管理', icon: '📍', bgColor: '#e7f8ed' },
   { key: 'service', label: '客服中心', icon: '🔒', bgColor: '#f0f1ff' }
 ]
 
@@ -232,6 +232,10 @@ async function onBindPhone() {
 }
 
 function onFuncTap(key) {
+  if (key === 'address') {
+    uni.navigateTo({ url: '/pages/address/list' })
+    return
+  }
   if (key === 'cabinet') {
     uni.navigateTo({ url: '/pages/cabinet/index' })
     return

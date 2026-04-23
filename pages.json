@@ -39,6 +39,18 @@
       }
     },
     {
+      "path": "pages/address/list",
+      "style": {
+        "navigationBarTitleText": "收货地址"
+      }
+    },
+    {
+      "path": "pages/address/edit",
+      "style": {
+        "navigationBarTitleText": "编辑地址"
+      }
+    },
+    {
       "path": "pages/cabinet/index",
       "style": {
         "navigationBarTitleText": "盒柜"
