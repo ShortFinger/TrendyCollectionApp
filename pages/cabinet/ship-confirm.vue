@@ -13,8 +13,11 @@
           <text class="line-sub">入柜时间: {{ row.createTime }}</text>
         </view>
       </view>
+      <view class="bottom-spacer" />
+    </scroll-view>
 
-      <view class="section">
+    <view class="ship-bottom-fixed">
+      <view class="addr-section">
         <text class="section-title">收货地址</text>
         <view v-if="addressLoading" class="hint">
           <text>加载中…</text>
@@ -31,32 +34,32 @@
           <text>未设置默认收货地址</text>
         </view>
       </view>
-      <view class="bottom-spacer" />
-    </scroll-view>
 
-    <view class="ship-footer">
-      <button class="footer-btn ghost" type="default" :disabled="submitting" @tap="goBack">返回</button>
-      <button
-        class="footer-btn primary"
-        type="default"
-        :disabled="!canSubmit"
-        :loading="submitting"
-        @tap="onSubmit"
-      >
-        确认发货
-      </button>
+      <view class="ship-footer">
+        <button class="footer-btn ghost" type="default" :disabled="submitting" @tap="goBack">返回</button>
+        <button
+          class="footer-btn primary"
+          type="default"
+          :disabled="!canSubmit"
+          :loading="submitting"
+          @tap="onSubmit"
+        >
+          确认发货
+        </button>
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, ref, nextTick, getCurrentInstance } from 'vue'
+import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { fetchAddressList, formatAddressApiError } from '@/utils/addressApi.js'
 import { createPrizeShipOrder } from '@/utils/cabinetApi.js'
 import { findDefaultAddress } from '@/utils/cabinetShipConfirm.js'
 
-const EVENT_INIT = 'cabinetShipConfirmInit'
+const SHIP_CONFIRM_NEED_REFRESH_KEY = 'cabinetShipConfirmNeedRefresh'
+const SHIP_CONFIRM_LATEST_PAYLOAD_KEY = 'cabinetShipConfirmLatestPayload'
 
 const assetIds = ref([])
 const items = ref([])
@@ -109,29 +112,38 @@ function tryPromptNoDefault() {
   })
 }
 
-function bindEventChannelInit() {
-  nextTick(() => {
-    const inst = getCurrentInstance()
-    const proxy = inst?.proxy
-    if (!proxy || typeof proxy.getOpenerEventChannel !== 'function') return
-    const ch = proxy.getOpenerEventChannel()
-    ch.once(EVENT_INIT, (payload) => {
-      const ids = Array.isArray(payload?.assetIds) ? payload.assetIds : []
-      const rows = Array.isArray(payload?.items) ? payload.items : []
-      assetIds.value = ids
-      items.value = rows
-      if (ids.length === 0) {
-        uni.showToast({ title: '没有可发货的商品', icon: 'none' })
-        setTimeout(() => uni.navigateBack(), 800)
-        return
-      }
-      tryPromptNoDefault()
-    })
-  })
-}
-
-onLoad(() => {
-  bindEventChannelInit()
+onLoad((options) => {
+  const rawKey = String(options?.payloadKey || '').trim()
+  let payloadKey = rawKey
+  // 某些端可能把 query 值做了编码，解码后再取一次
+  try {
+    const decoded = decodeURIComponent(rawKey)
+    if (decoded) payloadKey = decoded
+  } catch {
+    // ignore decode failure and keep raw key
+  }
+  let payload = null
+  if (rawKey) {
+    payload = uni.getStorageSync(rawKey)
+  }
+  if (!payload && payloadKey && payloadKey !== rawKey) {
+    payload = uni.getStorageSync(payloadKey)
+  }
+  if (!payload) {
+    payload = uni.getStorageSync(SHIP_CONFIRM_LATEST_PAYLOAD_KEY)
+  }
+  if (rawKey) uni.removeStorageSync(rawKey)
+  if (payloadKey && payloadKey !== rawKey) uni.removeStorageSync(payloadKey)
+  uni.removeStorageSync(SHIP_CONFIRM_LATEST_PAYLOAD_KEY)
+  const ids = Array.isArray(payload?.assetIds) ? payload.assetIds : []
+  const rows = Array.isArray(payload?.items) ? payload.items : []
+  assetIds.value = ids
+  items.value = rows
+  if (ids.length === 0) {
+    uni.showToast({ title: '没有可发货的商品', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 800)
+    return
+  }
 })
 
 async function reloadAddresses() {
@@ -164,6 +176,7 @@ async function onSubmit() {
       title: `已提交发货申请(${data?.assetCount ?? ids.length}件)`,
       icon: 'none'
     })
+    uni.setStorageSync(SHIP_CONFIRM_NEED_REFRESH_KEY, 1)
     setTimeout(() => {
       uni.navigateBack()
     }, 500)
@@ -181,7 +194,7 @@ async function onSubmit() {
   background: #f7f8fa;
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(360rpx + env(safe-area-inset-bottom));
 }
 
 .ship-scroll {
@@ -270,17 +283,25 @@ async function onSubmit() {
 }
 
 .bottom-spacer {
-  height: 32rpx;
+  height: calc(380rpx + env(safe-area-inset-bottom));
 }
 
-.ship-footer {
+.ship-bottom-fixed {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   background: #fff;
   box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.06);
-  padding: 14rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
+}
+
+.addr-section {
+  padding: 16rpx 24rpx 6rpx;
+}
+
+.ship-footer {
+  background: #fff;
+  padding: 12rpx 24rpx calc(14rpx + env(safe-area-inset-bottom));
   display: flex;
   gap: 16rpx;
 }

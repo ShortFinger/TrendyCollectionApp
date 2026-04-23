@@ -63,7 +63,9 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { pagePrizeAssets, smeltPrizeAssets } from '@/utils/cabinetApi.js'
 
-const SHIP_CONFIRM_INIT = 'cabinetShipConfirmInit'
+const SHIP_CONFIRM_PAYLOAD_KEY_PREFIX = 'cabinetShipConfirmPayload_'
+const SHIP_CONFIRM_LATEST_PAYLOAD_KEY = 'cabinetShipConfirmLatestPayload'
+const SHIP_CONFIRM_NEED_REFRESH_KEY = 'cabinetShipConfirmNeedRefresh'
 
 const tabs = [
   { key: 'IN_CABINET', label: '在柜' }
@@ -79,6 +81,8 @@ const loadingMore = ref(false)
 const submitting = ref(false)
 const smeltingBatch = ref(false)
 const selectedMap = ref({})
+/** 从确认页返回时是否需要强制刷新；普通返回保留勾选状态 */
+const shouldReloadOnShow = ref(true)
 
 const selectedIds = computed(() => Object.keys(selectedMap.value).filter((k) => selectedMap.value[k]))
 
@@ -152,15 +156,18 @@ function onCreateShipOrder() {
       assetStatus: row.assetStatus,
       createTime: row.createTime
     }))
+  const payloadKey = `${SHIP_CONFIRM_PAYLOAD_KEY_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const payload = { assetIds: ids, items: rows }
+  uni.setStorageSync(payloadKey, payload)
+  // 兜底：若 query key 在某端丢失/被编码，确认页可回退到最近一次 payload
+  uni.setStorageSync(SHIP_CONFIRM_LATEST_PAYLOAD_KEY, payload)
+  shouldReloadOnShow.value = false
   uni.navigateTo({
-    url: '/pages/cabinet/ship-confirm',
-    success(res) {
-      const payload = { assetIds: ids, items: rows }
-      setTimeout(() => {
-        res.eventChannel.emit(SHIP_CONFIRM_INIT, payload)
-      }, 0)
-    },
+    url: `/pages/cabinet/ship-confirm?payloadKey=${payloadKey}`,
     fail() {
+      uni.removeStorageSync(payloadKey)
+      uni.removeStorageSync(SHIP_CONFIRM_LATEST_PAYLOAD_KEY)
+      shouldReloadOnShow.value = true
       uni.showToast({ title: '无法打开发货确认页', icon: 'none' })
     }
   })
@@ -215,7 +222,16 @@ async function onSmeltSelected() {
 }
 
 onShow(() => {
-  load(true)
+  const needRefresh = uni.getStorageSync(SHIP_CONFIRM_NEED_REFRESH_KEY) === 1
+  if (needRefresh) {
+    uni.removeStorageSync(SHIP_CONFIRM_NEED_REFRESH_KEY)
+    shouldReloadOnShow.value = true
+  }
+  if (shouldReloadOnShow.value) {
+    load(true)
+  } else {
+    shouldReloadOnShow.value = true
+  }
 })
 </script>
 
