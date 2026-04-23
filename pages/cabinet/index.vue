@@ -61,11 +61,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import {
-  createPrizeShipOrder,
-  pagePrizeAssets,
-  smeltPrizeAssets
-} from '@/utils/cabinetApi.js'
+import { pagePrizeAssets, smeltPrizeAssets } from '@/utils/cabinetApi.js'
+
+const SHIP_CONFIRM_INIT = 'cabinetShipConfirmInit'
 
 const tabs = [
   { key: 'IN_CABINET', label: '在柜' }
@@ -140,21 +138,32 @@ function toggleSelect(assetId) {
   }
 }
 
-async function onCreateShipOrder() {
-  if (selectedIds.value.length === 0 || submitting.value) return
-  submitting.value = true
-  try {
-    const data = await createPrizeShipOrder(selectedIds.value)
-    uni.showToast({
-      title: `已提交发货申请(${data.assetCount}件)`,
-      icon: 'none'
-    })
-    await load(true)
-  } catch (err) {
-    uni.showToast({ title: err?.message || '提交失败', icon: 'none' })
-  } finally {
-    submitting.value = false
-  }
+function onCreateShipOrder() {
+  if (selectedIds.value.length === 0 || submitting.value || smeltingBatch.value) return
+  const ids = [...selectedIds.value]
+  const idSet = new Set(ids)
+  const rows = list.value
+    .filter((row) => idSet.has(row.assetId))
+    .map((row) => ({
+      assetId: row.assetId,
+      skuName: row.skuName,
+      activityId: row.activityId,
+      recordType: row.recordType,
+      assetStatus: row.assetStatus,
+      createTime: row.createTime
+    }))
+  uni.navigateTo({
+    url: '/pages/cabinet/ship-confirm',
+    success(res) {
+      const payload = { assetIds: ids, items: rows }
+      setTimeout(() => {
+        res.eventChannel.emit(SHIP_CONFIRM_INIT, payload)
+      }, 0)
+    },
+    fail() {
+      uni.showToast({ title: '无法打开发货确认页', icon: 'none' })
+    }
+  })
 }
 
 function smeltConfirmContent(n) {

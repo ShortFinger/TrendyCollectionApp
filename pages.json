@@ -57,6 +57,12 @@
       }
     },
     {
+      "path": "pages/cabinet/ship-confirm",
+      "style": {
+        "navigationBarTitleText": "发货确认"
+      }
+    },
+    {
       "path": "pages/login/index",
       "style": {
         "navigationStyle": "custom",
