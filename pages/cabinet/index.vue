@@ -19,20 +19,26 @@
       <view v-else-if="!loading && list.length === 0" class="state">
         <text>暂无数据</text>
       </view>
-      <view
-        v-for="item in list"
-        :key="item.assetId"
-        class="asset-card"
-        @tap="toggleSelect(item.assetId)"
-      >
-        <view class="asset-main">
-          <view class="checkbox" :class="{ checked: selectedMap[item.assetId] }" />
-          <view class="meta">
-            <text class="sku-name">{{ item.skuName }}</text>
-            <text class="sub">活动: {{ item.activityId }}</text>
-            <text class="sub">类型: {{ item.recordType }} | 状态: {{ item.assetStatus }}</text>
-            <text class="sub">入柜时间: {{ item.createTime }}</text>
+      <view class="asset-grid">
+        <view
+          v-for="item in list"
+          :key="item.assetId"
+          class="asset-card"
+          :class="{ selected: selectedMap[item.assetId] }"
+          @tap="toggleSelect(item.assetId)"
+        >
+          <image
+            v-if="hasImage(item)"
+            class="asset-thumb"
+            :src="resolveImageUrl(item)"
+            mode="aspectFill"
+          />
+          <view v-else class="asset-thumb asset-thumb-placeholder">
+            <text>暂无图片</text>
           </view>
+          <text class="sku-name">{{ resolveSkuName(item) }}</text>
+          <text class="recycle-price">回收价 {{ resolveRecyclePrice(item) }} 秘银</text>
+          <view v-if="selectedMap[item.assetId]" class="selected-mark">✓</view>
         </view>
       </view>
       <view v-if="loadingMore" class="state">
@@ -59,7 +65,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { pagePrizeAssets, smeltPrizeAssets } from '@/utils/cabinetApi.js'
 
@@ -109,7 +115,9 @@ async function load(reset = false) {
   const firstPage = pageNo.value === 1
   if (firstPage) loading.value = true
   else loadingMore.value = true
+  let beforeLen = 0
   try {
+    beforeLen = list.value.length
     const data = await pagePrizeAssets(currentTab.value, pageNo.value, pageSize)
     const newList = Array.isArray(data?.list) ? data.list : []
     total.value = Number(data?.total || 0)
@@ -121,6 +129,23 @@ async function load(reset = false) {
     loading.value = false
     loadingMore.value = false
   }
+
+  await nextTick()
+  await maybeAutoFillMore({ beforeLen })
+}
+
+/** 当内容不足以触发滚动时，`scrolltolower` 可能不会触发；此时自动补齐剩余分页 */
+async function maybeAutoFillMore({ beforeLen }) {
+  const totalN = Number(total.value || 0)
+  if (!totalN) return
+
+  // 服务端仍有剩余，但本次没有新增记录：避免死循环
+  if (list.value.length <= beforeLen && beforeLen > 0) return
+
+  if (list.value.length >= totalN) return
+  if (loading.value || loadingMore.value) return
+
+  await load(false)
 }
 
 function loadMore() {
@@ -142,6 +167,42 @@ function toggleSelect(assetId) {
   }
 }
 
+function resolveSkuName(item) {
+  const name = item?.skuName || item?.name || item?.title || ''
+  return String(name || '未命名商品')
+}
+
+function resolveImageUrl(item) {
+  return String(
+    item?.skuImageUrl ||
+      item?.skuImgUrl ||
+      item?.skuImage ||
+      item?.sku_image ||
+      item?.imageUrl ||
+      item?.image_url ||
+      item?.coverUrl ||
+      item?.cover_url ||
+      item?.cover ||
+      ''
+  )
+}
+
+function hasImage(item) {
+  return !!resolveImageUrl(item)
+}
+
+function resolveRecyclePrice(item) {
+  const raw =
+    item?.recyclePrice ??
+    item?.recycle_price ??
+    item?.skuRecyclePrice ??
+    item?.sku_recycle_price ??
+    item?.smeltPrice ??
+    item?.price
+  const num = Number(raw)
+  return Number.isFinite(num) ? Math.max(0, Math.round(num)) : 0
+}
+
 function onCreateShipOrder() {
   if (selectedIds.value.length === 0 || submitting.value || smeltingBatch.value) return
   const ids = [...selectedIds.value]
@@ -150,11 +211,9 @@ function onCreateShipOrder() {
     .filter((row) => idSet.has(row.assetId))
     .map((row) => ({
       assetId: row.assetId,
-      skuName: row.skuName,
-      activityId: row.activityId,
-      recordType: row.recordType,
-      assetStatus: row.assetStatus,
-      createTime: row.createTime
+      skuName: resolveSkuName(row),
+      skuImageUrl: resolveImageUrl(row),
+      recyclePrice: resolveRecyclePrice(row)
     }))
   const payloadKey = `${SHIP_CONFIRM_PAYLOAD_KEY_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   const payload = { assetIds: ids, items: rows }
@@ -271,47 +330,85 @@ onShow(() => {
   box-sizing: border-box;
 }
 
+.asset-grid {
+  --asset-card-height: 312rpx;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18rpx 8rpx;
+  height: 100%;
+  min-height: 100%;
+  align-content: start;
+}
+
 .asset-card {
   background: #fff;
-  border-radius: 20rpx;
-  padding: 20rpx;
-  margin-bottom: 16rpx;
-}
-
-.asset-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
-}
-
-.checkbox {
-  width: 34rpx;
-  height: 34rpx;
-  border: 2rpx solid #c9c9c9;
-  border-radius: 50%;
-  margin-top: 6rpx;
-}
-
-.checkbox.checked {
-  background: #111;
-  border-color: #111;
-}
-
-.meta {
+  border: 2rpx solid #e5e7eb;
+  border-radius: 12rpx;
+  padding: 6rpx;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 4rpx;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.asset-card.selected {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1rpx #bfdbfe;
+}
+
+.asset-thumb {
+  width: 100%;
+  height: 192rpx;
+  flex-shrink: 0;
+  display: block;
+  border-radius: 8rpx;
+  background: linear-gradient(145deg, #fde68a 0%, #f9a8d4 45%, #bfdbfe 100%);
+}
+
+.asset-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #9ca3af;
+  font-size: 14rpx;
 }
 
 .sku-name {
-  font-size: 28rpx;
+  font-size: 18rpx;
   font-weight: 600;
   color: #222;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.sub {
-  font-size: 22rpx;
-  color: #777;
+.recycle-price {
+  font-size: 16rpx;
+  color: #4b5563;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selected-mark {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  width: 22rpx;
+  height: 22rpx;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14rpx;
+  line-height: 22rpx;
+  text-align: center;
+  font-weight: 700;
 }
 
 .state {

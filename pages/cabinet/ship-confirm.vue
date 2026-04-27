@@ -6,11 +6,20 @@
         <view v-if="items.length === 0" class="hint">
           <text>暂无选中商品</text>
         </view>
-        <view v-for="row in items" :key="row.assetId" class="line-card">
-          <text class="line-name">{{ row.skuName }}</text>
-          <text class="line-sub">活动: {{ row.activityId }}</text>
-          <text class="line-sub">类型: {{ row.recordType }} | 状态: {{ row.assetStatus }}</text>
-          <text class="line-sub">入柜时间: {{ row.createTime }}</text>
+        <view class="asset-grid">
+          <view v-for="row in items" :key="row.assetId" class="asset-card">
+            <image
+              v-if="hasShipImage(row)"
+              class="asset-thumb"
+              :src="resolveShipImageUrl(row)"
+              mode="aspectFill"
+            />
+            <view v-else class="asset-thumb asset-thumb-placeholder">
+              <text>暂无图片</text>
+            </view>
+            <text class="sku-name">{{ resolveShipSkuName(row) }}</text>
+            <text class="recycle-price">回收价 {{ resolveShipRecyclePrice(row) }} 秘银</text>
+          </view>
         </view>
       </view>
       <view class="bottom-spacer" />
@@ -110,6 +119,42 @@ function tryPromptNoDefault() {
       }
     }
   })
+}
+
+function resolveShipSkuName(row) {
+  const name = row?.skuName || row?.name || row?.title || ''
+  return String(name || '未命名商品')
+}
+
+function resolveShipImageUrl(row) {
+  return String(
+    row?.skuImageUrl ||
+      row?.skuImgUrl ||
+      row?.skuImage ||
+      row?.sku_image ||
+      row?.imageUrl ||
+      row?.image_url ||
+      row?.coverUrl ||
+      row?.cover_url ||
+      row?.cover ||
+      ''
+  )
+}
+
+function hasShipImage(row) {
+  return !!resolveShipImageUrl(row)
+}
+
+function resolveShipRecyclePrice(row) {
+  const raw =
+    row?.recyclePrice ??
+    row?.recycle_price ??
+    row?.skuRecyclePrice ??
+    row?.sku_recycle_price ??
+    row?.smeltPrice ??
+    row?.price
+  const num = Number(raw)
+  return Number.isFinite(num) ? Math.max(0, Math.round(num)) : 0
 }
 
 onLoad((options) => {
@@ -216,25 +261,61 @@ async function onSubmit() {
   margin-bottom: 12rpx;
 }
 
-.line-card {
-  background: #fff;
-  border-radius: 20rpx;
-  padding: 20rpx;
-  margin-bottom: 12rpx;
+.asset-grid {
+  --asset-card-height: 312rpx;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18rpx 8rpx;
 }
 
-.line-name {
-  font-size: 28rpx;
+.asset-card {
+  background: #fff;
+  border: 2rpx solid #e5e7eb;
+  border-radius: 12rpx;
+  padding: 6rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.asset-thumb {
+  width: 100%;
+  height: 192rpx;
+  flex-shrink: 0;
+  display: block;
+  border-radius: 8rpx;
+  background: linear-gradient(145deg, #fde68a 0%, #f9a8d4 45%, #bfdbfe 100%);
+}
+
+.asset-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #9ca3af;
+  font-size: 14rpx;
+}
+
+.sku-name {
+  font-size: 18rpx;
   font-weight: 600;
   color: #222;
-  display: block;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.line-sub {
-  font-size: 22rpx;
-  color: #777;
-  display: block;
-  margin-top: 8rpx;
+.recycle-price {
+  font-size: 16rpx;
+  color: #4b5563;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hint {
