@@ -23,7 +23,9 @@
     {
       "path": "pages/card/index",
       "style": {
-        "navigationBarTitleText": "抽卡机"
+        "navigationBarTitleText": "抽卡机",
+        "navigationBarBackgroundColor": "#1a1a1a",
+        "navigationBarTextStyle": "white"
       }
     },
     {
