@@ -44,7 +44,7 @@
             </view>
             <text class="sku-name">{{ resolveSkuName(row.representative) }}</text>
             <text class="recycle-price">回收价 {{ resolveRecyclePrice(row.representative) }} 秘银</text>
-            <view v-if="isRowSelected(row)" class="selected-mark">✓</view>
+            <view v-if="isRowFullySelected(row)" class="selected-mark">✓</view>
           </view>
           <view
             v-if="row.type === 'group' && row.members.length >= 2"
@@ -162,6 +162,10 @@ function closeGroupSheet() {
 
 function isRowSelected(row) {
   return groupHasSelection(row.members, selectedMap.value)
+}
+
+function isRowFullySelected(row) {
+  return groupAllSelected(row.members, selectedMap.value)
 }
 
 function onRowMainTap(row) {
