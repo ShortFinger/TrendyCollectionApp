@@ -20,17 +20,17 @@
         class="tab-row-actions"
       >
         <template v-if="manageMode">
-          <text class="select-all-link" @tap="onSelectAllLoaded">全选</text>
-          <text class="select-all-link" @tap="clearSelection">取消全选</text>
+          <text class="toolbar-action toolbar-action--muted" @tap="onSelectAllLoaded">全选</text>
+          <text class="toolbar-action toolbar-action--muted" @tap="clearSelection">取消全选</text>
         </template>
         <text
           v-if="!manageMode"
-          class="tab-manage"
+          class="toolbar-action toolbar-action--strong"
           @tap="enterManage"
         >管理</text>
         <text
           v-else
-          class="tab-manage"
+          class="toolbar-action toolbar-action--strong"
           @tap="exitManage"
         >完成</text>
       </view>
@@ -450,9 +450,16 @@ onShow(() => {
 </script>
 
 <style lang="scss" scoped>
+$cab-bg-page: #f7f8fa;
+$cab-text: #111;
+$cab-text-muted: #6b7280;
+$cab-divider: #f0f1f5;
+$cab-tab-inactive-bg: #f0f1f5;
+$cab-tab-inactive-text: #666;
+
 .cabinet-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: $cab-bg-page;
   display: flex;
   flex-direction: column;
   padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
@@ -469,6 +476,7 @@ onShow(() => {
   gap: 16rpx;
   background: #fff;
   padding: 16rpx 24rpx;
+  border-bottom: 1rpx solid $cab-divider;
 }
 
 .tab-row-left {
@@ -484,33 +492,36 @@ onShow(() => {
   align-items: center;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 20rpx;
+  gap: 16rpx;
   flex-shrink: 0;
 }
 
-.tab-manage {
+.toolbar-action {
   flex-shrink: 0;
-  font-size: 28rpx;
-  color: #2563eb;
+  font-size: 24rpx;
+  line-height: 1.3;
   padding: 8rpx 0;
 }
 
-.select-all-link {
-  font-size: 26rpx;
-  color: #2563eb;
-  flex-shrink: 0;
+.toolbar-action--muted {
+  color: $cab-text-muted;
+}
+
+.toolbar-action--strong {
+  color: $cab-text;
+  font-weight: 600;
 }
 
 .tab-item {
   padding: 12rpx 24rpx;
   border-radius: 999rpx;
-  background: #f0f1f5;
-  color: #666;
+  background: $cab-tab-inactive-bg;
+  color: $cab-tab-inactive-text;
   font-size: 24rpx;
 }
 
 .tab-item-active {
-  background: #111;
+  background: $cab-text;
   color: #fff;
 }
 
@@ -578,7 +589,8 @@ onShow(() => {
 
 .merge-expand-text {
   font-size: 16rpx;
-  color: #2563eb;
+  color: $cab-text;
+  font-weight: 600;
 }
 
 .sheet-mask {
@@ -632,7 +644,8 @@ onShow(() => {
 
 .sheet-close {
   font-size: 26rpx;
-  color: #2563eb;
+  color: $cab-text;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
@@ -696,9 +709,9 @@ onShow(() => {
 }
 
 .asset-card.selected {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  box-shadow: inset 0 0 0 1rpx #bfdbfe;
+  border-color: $cab-text;
+  background: #f9fafb;
+  box-shadow: none;
 }
 
 .asset-thumb {
@@ -745,7 +758,7 @@ onShow(() => {
   width: 22rpx;
   height: 22rpx;
   border-radius: 50%;
-  background: #2563eb;
+  background: $cab-text;
   color: #fff;
   font-size: 14rpx;
   line-height: 22rpx;
@@ -755,7 +768,7 @@ onShow(() => {
 
 .state {
   text-align: center;
-  color: #888;
+  color: $cab-text-muted;
   padding: 32rpx 0;
   font-size: 24rpx;
 }
@@ -776,7 +789,8 @@ onShow(() => {
 
 .selected-count {
   font-size: 24rpx;
-  color: #444;
+  color: $cab-text;
+  font-weight: 500;
 }
 
 .btn-row {
@@ -793,7 +807,7 @@ onShow(() => {
 }
 
 .btn.black {
-  background: #111;
+  background: $cab-text;
   color: #fff;
 }
 
@@ -801,7 +815,7 @@ onShow(() => {
   min-width: 140rpx;
   margin: 0;
   background: #fff;
-  color: #333;
+  color: $cab-text;
   border: 2rpx solid #ccc;
 }
 

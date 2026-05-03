@@ -234,9 +234,13 @@ async function onSubmit() {
 </script>
 
 <style lang="scss" scoped>
+$cab-bg-page: #f7f8fa;
+$cab-text: #111;
+$cab-text-muted: #6b7280;
+
 .ship-page {
   min-height: 100vh;
-  background: #f7f8fa;
+  background: $cab-bg-page;
   display: flex;
   flex-direction: column;
   padding-bottom: calc(360rpx + env(safe-area-inset-bottom));
@@ -256,7 +260,7 @@ async function onSubmit() {
 .section-title {
   font-size: 26rpx;
   font-weight: 600;
-  color: #333;
+  color: $cab-text;
   display: block;
   margin-bottom: 12rpx;
 }
@@ -320,7 +324,7 @@ async function onSubmit() {
 
 .hint {
   text-align: center;
-  color: #888;
+  color: $cab-text-muted;
   padding: 24rpx 0;
   font-size: 24rpx;
 }
@@ -350,7 +354,7 @@ async function onSubmit() {
 
 .addr-line {
   font-size: 26rpx;
-  color: #333;
+  color: $cab-text;
   display: block;
   line-height: 1.5;
 }
@@ -360,7 +364,7 @@ async function onSubmit() {
   border-radius: 20rpx;
   padding: 24rpx;
   font-size: 24rpx;
-  color: #888;
+  color: $cab-text-muted;
 }
 
 .bottom-spacer {
@@ -397,7 +401,7 @@ async function onSubmit() {
 
 .footer-btn.ghost {
   background: #fff;
-  color: #333;
+  color: $cab-text;
   border: 2rpx solid #ccc;
 }
 
