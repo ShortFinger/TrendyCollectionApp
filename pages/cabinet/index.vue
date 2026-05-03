@@ -1,15 +1,38 @@
 <template>
-  <view class="cabinet-page">
+  <view
+    class="cabinet-page"
+    :class="{ 'cabinet-page--with-bottom': manageMode && currentTab === 'IN_CABINET' }"
+  >
     <view class="tab-row">
-      <view
-        v-for="tab in tabs"
-        :key="tab.key"
-        class="tab-item"
-        :class="{ 'tab-item-active': currentTab === tab.key }"
-        @tap="onSwitchTab(tab.key)"
-      >
-        <text>{{ tab.label }}</text>
+      <view class="tab-row-left">
+        <view
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="tab-item"
+          :class="{ 'tab-item-active': currentTab === tab.key }"
+          @tap="onSwitchTab(tab.key)"
+        >
+          <text>{{ tab.label }}</text>
+        </view>
       </view>
+      <text
+        v-if="currentTab === 'IN_CABINET' && !manageMode"
+        class="tab-manage"
+        @tap="enterManage"
+      >管理</text>
+      <text
+        v-else-if="currentTab === 'IN_CABINET' && manageMode"
+        class="tab-manage"
+        @tap="exitManage"
+      >完成</text>
+    </view>
+
+    <view
+      v-if="manageMode && currentTab === 'IN_CABINET'"
+      class="select-all-row"
+    >
+      <text class="select-all-link" @tap="onSelectAllLoaded">全选</text>
+      <text class="select-all-link" @tap="clearSelection">取消全选</text>
     </view>
 
     <scroll-view class="list-wrap" scroll-y @scrolltolower="loadMore">
@@ -24,7 +47,7 @@
           v-for="row in displayRows"
           :key="row.mergeKey"
           class="asset-card"
-          :class="{ selected: isRowSelected(row) }"
+          :class="{ selected: manageMode && isRowSelected(row) }"
         >
           <view class="asset-card-main" @tap="onRowMainTap(row)">
             <view
@@ -44,7 +67,7 @@
             </view>
             <text class="sku-name">{{ resolveSkuName(row.representative) }}</text>
             <text class="recycle-price">回收价 {{ resolveRecyclePrice(row.representative) }} 秘银</text>
-            <view v-if="isRowFullySelected(row)" class="selected-mark">✓</view>
+            <view v-if="manageMode && isRowFullySelected(row)" class="selected-mark">✓</view>
           </view>
           <view
             v-if="row.type === 'group' && row.members.length >= 2"
@@ -60,7 +83,7 @@
       </view>
     </scroll-view>
 
-    <view class="bottom-bar" v-if="currentTab === 'IN_CABINET'">
+    <view class="bottom-bar" v-if="currentTab === 'IN_CABINET' && manageMode">
       <text class="selected-count">已选 {{ selectedIds.length }} 件</text>
       <view class="btn-row">
         <button
@@ -90,9 +113,10 @@
             v-for="m in sheetMembers"
             :key="m.assetId"
             class="sheet-row"
-            @tap="toggleMemberInSheet(m.assetId)"
+            @tap="onSheetRowTap(m.assetId)"
           >
-            <text class="sheet-check">{{ selectedMap[m.assetId] ? '☑' : '☐' }}</text>
+            <text v-if="manageMode" class="sheet-check">{{ selectedMap[m.assetId] ? '☑' : '☐' }}</text>
+            <view v-else class="sheet-check-placeholder" />
             <image
               v-if="hasImage(m)"
               class="sheet-thumb"
@@ -122,6 +146,7 @@ import {
   groupAllSelected,
   groupHasSelection
 } from '@/utils/cabinetMergeGroups.js'
+import { collectInCabinetAssetIds } from '@/utils/cabinetSelection.js'
 
 const SHIP_CONFIRM_PAYLOAD_KEY_PREFIX = 'cabinetShipConfirmPayload_'
 const SHIP_CONFIRM_LATEST_PAYLOAD_KEY = 'cabinetShipConfirmLatestPayload'
@@ -140,6 +165,7 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const submitting = ref(false)
 const smeltingBatch = ref(false)
+const manageMode = ref(false)
 const selectedMap = ref({})
 /** 从确认页返回时是否需要强制刷新；普通返回保留勾选状态 */
 const shouldReloadOnShow = ref(true)
@@ -150,6 +176,25 @@ const displayRows = computed(() => buildCabinetDisplayRows(list.value, currentTa
 
 const sheetOpen = ref(false)
 const sheetMembers = ref([])
+
+function enterManage() {
+  if (currentTab.value !== 'IN_CABINET') return
+  manageMode.value = true
+}
+
+function exitManage() {
+  manageMode.value = false
+  clearSelection()
+  closeGroupSheet()
+}
+
+function onSelectAllLoaded() {
+  const next = { ...selectedMap.value }
+  for (const id of collectInCabinetAssetIds(list.value)) {
+    next[id] = true
+  }
+  selectedMap.value = next
+}
 
 function openGroupSheet(members) {
   sheetMembers.value = Array.isArray(members) ? [...members] : []
@@ -170,6 +215,21 @@ function isRowFullySelected(row) {
 
 function onRowMainTap(row) {
   if (currentTab.value !== 'IN_CABINET') return
+
+  if (!manageMode.value) {
+    const rep = row?.representative
+    const url = resolveImageUrl(rep)
+    if (!url) {
+      uni.showToast({ title: '暂无图片', icon: 'none' })
+      return
+    }
+    uni.previewImage({
+      urls: [url],
+      current: url
+    })
+    return
+  }
+
   const allOn = groupAllSelected(row.members, selectedMap.value)
   const next = { ...selectedMap.value }
   for (const m of row.members) {
@@ -177,6 +237,11 @@ function onRowMainTap(row) {
     next[id] = !allOn
   }
   selectedMap.value = next
+}
+
+function onSheetRowTap(assetId) {
+  if (!manageMode.value) return
+  toggleMemberInSheet(assetId)
 }
 
 function toggleMemberInSheet(assetId) {
@@ -251,6 +316,7 @@ function loadMore() {
 function onSwitchTab(tab) {
   if (currentTab.value === tab) return
   closeGroupSheet()
+  manageMode.value = false
   currentTab.value = tab
   load(true)
 }
@@ -388,14 +454,49 @@ onShow(() => {
   background: #f7f8fa;
   display: flex;
   flex-direction: column;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+
+.cabinet-page--with-bottom {
   padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 }
 
 .tab-row {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
   background: #fff;
   padding: 16rpx 24rpx;
+}
+
+.tab-row-left {
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.tab-manage {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #2563eb;
+  padding: 8rpx 0 8rpx 16rpx;
+}
+
+.select-all-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 32rpx;
+  padding: 8rpx 24rpx 12rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #f0f1f5;
+}
+
+.select-all-link {
+  font-size: 26rpx;
+  color: #2563eb;
 }
 
 .tab-item {
@@ -549,6 +650,11 @@ onShow(() => {
   font-size: 28rpx;
   width: 36rpx;
   text-align: center;
+  flex-shrink: 0;
+}
+
+.sheet-check-placeholder {
+  width: 36rpx;
   flex-shrink: 0;
 }
 
