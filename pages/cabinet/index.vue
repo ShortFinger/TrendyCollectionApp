@@ -15,24 +15,25 @@
           <text>{{ tab.label }}</text>
         </view>
       </view>
-      <text
-        v-if="currentTab === 'IN_CABINET' && !manageMode"
-        class="tab-manage"
-        @tap="enterManage"
-      >管理</text>
-      <text
-        v-else-if="currentTab === 'IN_CABINET' && manageMode"
-        class="tab-manage"
-        @tap="exitManage"
-      >完成</text>
-    </view>
-
-    <view
-      v-if="manageMode && currentTab === 'IN_CABINET'"
-      class="select-all-row"
-    >
-      <text class="select-all-link" @tap="onSelectAllLoaded">全选</text>
-      <text class="select-all-link" @tap="clearSelection">取消全选</text>
+      <view
+        v-if="currentTab === 'IN_CABINET'"
+        class="tab-row-actions"
+      >
+        <template v-if="manageMode">
+          <text class="select-all-link" @tap="onSelectAllLoaded">全选</text>
+          <text class="select-all-link" @tap="clearSelection">取消全选</text>
+        </template>
+        <text
+          v-if="!manageMode"
+          class="tab-manage"
+          @tap="enterManage"
+        >管理</text>
+        <text
+          v-else
+          class="tab-manage"
+          @tap="exitManage"
+        >完成</text>
+      </view>
     </view>
 
     <scroll-view class="list-wrap" scroll-y @scrolltolower="loadMore">
@@ -478,25 +479,26 @@ onShow(() => {
   min-width: 0;
 }
 
+.tab-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 20rpx;
+  flex-shrink: 0;
+}
+
 .tab-manage {
   flex-shrink: 0;
   font-size: 28rpx;
   color: #2563eb;
-  padding: 8rpx 0 8rpx 16rpx;
-}
-
-.select-all-row {
-  display: flex;
-  justify-content: flex-end;
-  gap: 32rpx;
-  padding: 8rpx 24rpx 12rpx;
-  background: #fff;
-  border-bottom: 1rpx solid #f0f1f5;
+  padding: 8rpx 0;
 }
 
 .select-all-link {
   font-size: 26rpx;
   color: #2563eb;
+  flex-shrink: 0;
 }
 
 .tab-item {
