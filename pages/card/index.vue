@@ -8,18 +8,39 @@
     </view>
     <view v-else class="content">
       <view class="main">
-        <view
-          class="cover"
-          :style="{ backgroundImage: coverUrl ? `url(${coverUrl})` : '' }"
-        />
-        <view class="side">
-          <view class="side-item" @tap="onPlaceholder">
-            <text class="side-text">中赏概率</text>
-          </view>
-          <view class="side-item" @tap="onPlaceholder">
-            <text class="side-text">购买说明</text>
+        <view class="card-area">
+          <image
+            v-if="displayImageUrl"
+            class="card-img"
+            :src="displayImageUrl"
+            mode="aspectFit"
+          />
+          <view v-else class="card-placeholder">
+            <text class="card-placeholder-text">暂无展示卡</text>
           </view>
         </view>
+        <view class="side">
+          <view
+            v-for="(btn, idx) in sideButtons"
+            :key="idx"
+            class="side-item"
+            @tap="onPlaceholder"
+          >
+            <text class="side-icon">{{ btn.icon }}</text>
+            <text class="side-label">{{ btn.label }}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="energy">
+        <view class="energy-header">
+          <text class="energy-label">能量值</text>
+          <text class="energy-value">{{ energyInfo.current }}/{{ energyInfo.total }}</text>
+        </view>
+        <view class="energy-track">
+          <view class="energy-fill" :style="{ width: energyPercent + '%' }" />
+        </view>
+        <text class="energy-guarantee">{{ energyInfo.guaranteeText }}</text>
       </view>
     </view>
 
@@ -52,16 +73,48 @@ const vo = ref(null)
 const drawing = ref(false)
 const activityId = ref('')
 
-const coverUrl = computed(() => {
+const displayImageUrl = computed(() => {
   const v = vo.value
   if (!v) return ''
+  const skus = v.skus
+  if (Array.isArray(skus)) {
+    const displaySku = skus.find(s => s.isDisplayItem)
+    if (displaySku?.imageUrl) return displaySku.imageUrl
+  }
   const levels = v.rewardLevels
+  if (Array.isArray(levels)) {
+    for (const level of levels) {
+      if (Array.isArray(level.skus)) {
+        const displaySku = level.skus.find(s => s.isDisplayItem)
+        if (displaySku?.imageUrl) return displaySku.imageUrl
+      }
+    }
+  }
   if (Array.isArray(levels) && levels.length > 0) {
     const icon = String(levels[0]?.icon ?? '').trim()
     if (icon) return icon
   }
   return ''
 })
+
+const energyInfo = ref({
+  current: 1,
+  total: 20,
+  guaranteeText: '单人每20包必出SR'
+})
+
+const energyPercent = computed(() => {
+  const { current, total } = energyInfo.value
+  if (!total || total <= 0) return 0
+  return Math.min(100, Math.round((current / total) * 100))
+})
+
+const sideButtons = [
+  { icon: '📋', label: '中赏记录' },
+  { icon: '🎯', label: '中赏概率' },
+  { icon: '❗', label: '购买说明' },
+  { icon: '🏆', label: '图鉴奖励' }
+]
 
 watch(
   () => vo.value,
@@ -142,8 +195,8 @@ async function onDraw(count) {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f7f8fa;
-  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
+  background: #1a1a1a;
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
 
@@ -157,17 +210,6 @@ async function onDraw(count) {
 
 .state-text {
   font-size: 28rpx;
-  color: #666;
-}
-
-.state-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #333;
-}
-
-.state-sub {
-  font-size: 26rpx;
   color: #999;
 }
 
@@ -186,12 +228,30 @@ async function onDraw(count) {
   min-height: 0;
 }
 
-.cover {
+.card-area {
   flex: 1;
   min-width: 0;
-  background-color: #eee;
-  background-size: cover;
-  background-position: center;
+  background: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24rpx;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+}
+
+.card-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-placeholder-text {
+  font-size: 28rpx;
+  color: #666;
 }
 
 .side {
@@ -199,17 +259,72 @@ async function onDraw(count) {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 24rpx;
-  padding: 16rpx 20rpx;
+  gap: 20rpx;
+  padding: 16rpx 12rpx;
 }
 
 .side-item {
-  padding: 8rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 16rpx 12rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.side-text {
+.side-icon {
+  font-size: 36rpx;
+}
+
+.side-label {
+  font-size: 22rpx;
+  color: #ccc;
+}
+
+.energy {
+  padding: 24rpx 32rpx 16rpx;
+}
+
+.energy-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.energy-label {
   font-size: 26rpx;
-  color: #333;
+  color: #fff;
+}
+
+.energy-value {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.energy-track {
+  height: 12rpx;
+  border-radius: 6rpx;
+  background: #333;
+  overflow: hidden;
+}
+
+.energy-fill {
+  height: 100%;
+  border-radius: 6rpx;
+  background: #d4a84b;
+  transition: width 0.3s ease;
+}
+
+.energy-guarantee {
+  display: block;
+  text-align: center;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
 }
 
 .bar {
@@ -222,8 +337,8 @@ async function onDraw(count) {
   align-items: stretch;
   gap: 12rpx;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.06);
+  background: #111;
+  box-shadow: 0 -2rpx 16rpx rgba(212, 168, 75, 0.15);
   box-sizing: border-box;
 }
 
@@ -232,16 +347,16 @@ async function onDraw(count) {
   border-radius: 999rpx;
   padding: 20rpx 8rpx;
   text-align: center;
-  background: #111;
+  background: #2a2a2a;
 }
 
 .bar-btn-text {
   font-size: 26rpx;
   font-weight: 600;
-  color: #fff;
+  color: #e0e0e0;
 }
 
 .bar-btn-disabled {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 </style>
