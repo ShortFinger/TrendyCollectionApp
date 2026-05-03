@@ -106,7 +106,7 @@ const energyInfo = ref({
 const energyPercent = computed(() => {
   const { current, total } = energyInfo.value
   if (!total || total <= 0) return 0
-  return Math.min(100, Math.round((current / total) * 100))
+  return Math.min(100, Math.max(0, Math.round((current / total) * 100)))
 })
 
 const sideButtons = [
