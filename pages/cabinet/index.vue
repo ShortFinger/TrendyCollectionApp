@@ -21,24 +21,38 @@
       </view>
       <view class="asset-grid">
         <view
-          v-for="item in list"
-          :key="item.assetId"
+          v-for="row in displayRows"
+          :key="row.mergeKey"
           class="asset-card"
-          :class="{ selected: selectedMap[item.assetId] }"
-          @tap="toggleSelect(item.assetId)"
+          :class="{ selected: isRowSelected(row) }"
         >
-          <image
-            v-if="hasImage(item)"
-            class="asset-thumb"
-            :src="resolveImageUrl(item)"
-            mode="aspectFill"
-          />
-          <view v-else class="asset-thumb asset-thumb-placeholder">
-            <text>暂无图片</text>
+          <view class="asset-card-main" @tap="onRowMainTap(row)">
+            <view
+              v-if="row.type === 'group' && row.members.length >= 2"
+              class="merge-count-badge"
+            >
+              <text class="merge-count-text">×{{ row.members.length }}</text>
+            </view>
+            <image
+              v-if="hasImage(row.representative)"
+              class="asset-thumb"
+              :src="resolveImageUrl(row.representative)"
+              mode="aspectFill"
+            />
+            <view v-else class="asset-thumb asset-thumb-placeholder">
+              <text>暂无图片</text>
+            </view>
+            <text class="sku-name">{{ resolveSkuName(row.representative) }}</text>
+            <text class="recycle-price">回收价 {{ resolveRecyclePrice(row.representative) }} 秘银</text>
+            <view v-if="isRowSelected(row)" class="selected-mark">✓</view>
           </view>
-          <text class="sku-name">{{ resolveSkuName(item) }}</text>
-          <text class="recycle-price">回收价 {{ resolveRecyclePrice(item) }} 秘银</text>
-          <view v-if="selectedMap[item.assetId]" class="selected-mark">✓</view>
+          <view
+            v-if="row.type === 'group' && row.members.length >= 2"
+            class="merge-expand"
+            @tap.stop="openGroupSheet(row.members)"
+          >
+            <text class="merge-expand-text">展开</text>
+          </view>
         </view>
       </view>
       <view v-if="loadingMore" class="state">
@@ -61,6 +75,41 @@
         </button>
       </view>
     </view>
+
+    <view v-if="sheetOpen" class="sheet-mask" @tap="closeGroupSheet">
+      <view class="sheet-panel" @tap.stop>
+        <view class="sheet-head">
+          <view class="sheet-head-texts">
+            <text class="sheet-title">{{ resolveSkuName(sheetMembers[0]) }}</text>
+            <text class="sheet-sub">共 {{ sheetMembers.length }} 件 · 同一订单</text>
+          </view>
+          <text class="sheet-close" @tap="closeGroupSheet">关闭</text>
+        </view>
+        <scroll-view scroll-y class="sheet-list">
+          <view
+            v-for="m in sheetMembers"
+            :key="m.assetId"
+            class="sheet-row"
+            @tap="toggleMemberInSheet(m.assetId)"
+          >
+            <text class="sheet-check">{{ selectedMap[m.assetId] ? '☑' : '☐' }}</text>
+            <image
+              v-if="hasImage(m)"
+              class="sheet-thumb"
+              :src="resolveImageUrl(m)"
+              mode="aspectFill"
+            />
+            <view v-else class="sheet-thumb sheet-thumb-placeholder">
+              <text>无图</text>
+            </view>
+            <view class="sheet-meta">
+              <text class="sheet-name">{{ resolveSkuName(m) }}</text>
+              <text class="sheet-price">回收价 {{ resolveRecyclePrice(m) }} 秘银</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -68,6 +117,11 @@
 import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { pagePrizeAssets, smeltPrizeAssets } from '@/utils/cabinetApi.js'
+import {
+  buildCabinetDisplayRows,
+  groupAllSelected,
+  groupHasSelection
+} from '@/utils/cabinetMergeGroups.js'
 
 const SHIP_CONFIRM_PAYLOAD_KEY_PREFIX = 'cabinetShipConfirmPayload_'
 const SHIP_CONFIRM_LATEST_PAYLOAD_KEY = 'cabinetShipConfirmLatestPayload'
@@ -91,6 +145,43 @@ const selectedMap = ref({})
 const shouldReloadOnShow = ref(true)
 
 const selectedIds = computed(() => Object.keys(selectedMap.value).filter((k) => selectedMap.value[k]))
+
+const displayRows = computed(() => buildCabinetDisplayRows(list.value, currentTab.value))
+
+const sheetOpen = ref(false)
+const sheetMembers = ref([])
+
+function openGroupSheet(members) {
+  sheetMembers.value = Array.isArray(members) ? [...members] : []
+  sheetOpen.value = true
+}
+
+function closeGroupSheet() {
+  sheetOpen.value = false
+}
+
+function isRowSelected(row) {
+  return groupHasSelection(row.members, selectedMap.value)
+}
+
+function onRowMainTap(row) {
+  if (currentTab.value !== 'IN_CABINET') return
+  const allOn = groupAllSelected(row.members, selectedMap.value)
+  const next = { ...selectedMap.value }
+  for (const m of row.members) {
+    const id = String(m.assetId)
+    next[id] = !allOn
+  }
+  selectedMap.value = next
+}
+
+function toggleMemberInSheet(assetId) {
+  const id = String(assetId)
+  selectedMap.value = {
+    ...selectedMap.value,
+    [id]: !selectedMap.value[id]
+  }
+}
 
 /** 已勾选且当前列表中仍为在柜的 assetId（批量熔炼仅处理这些） */
 const selectedInCabinetIds = computed(() => {
@@ -155,16 +246,9 @@ function loadMore() {
 
 function onSwitchTab(tab) {
   if (currentTab.value === tab) return
+  closeGroupSheet()
   currentTab.value = tab
   load(true)
-}
-
-function toggleSelect(assetId) {
-  if (currentTab.value !== 'IN_CABINET') return
-  selectedMap.value = {
-    ...selectedMap.value,
-    [assetId]: !selectedMap.value[assetId]
-  }
 }
 
 function resolveSkuName(item) {
@@ -347,10 +431,156 @@ onShow(() => {
   padding: 6rpx;
   display: flex;
   flex-direction: column;
-  gap: 4rpx;
+  gap: 2rpx;
   min-width: 0;
   overflow: hidden;
   position: relative;
+}
+
+.asset-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.merge-count-badge {
+  position: absolute;
+  top: 2rpx;
+  left: 2rpx;
+  z-index: 2;
+  background: rgba(17, 24, 39, 0.85);
+  color: #fff;
+  font-size: 16rpx;
+  line-height: 1;
+  padding: 4rpx 8rpx;
+  border-radius: 8rpx;
+}
+
+.merge-count-text {
+  font-weight: 700;
+}
+
+.merge-expand {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 2rpx 0 0;
+}
+
+.merge-expand-text {
+  font-size: 16rpx;
+  color: #2563eb;
+}
+
+.sheet-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet-panel {
+  width: 100%;
+  max-height: 62vh;
+  background: #fff;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.sheet-head-texts {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.sheet-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #111;
+}
+
+.sheet-sub {
+  font-size: 22rpx;
+  color: #6b7280;
+}
+
+.sheet-close {
+  font-size: 26rpx;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.sheet-list {
+  max-height: 46vh;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #f3f4f6;
+}
+
+.sheet-check {
+  font-size: 28rpx;
+  width: 36rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sheet-thumb {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 10rpx;
+  flex-shrink: 0;
+  background: #f3f4f6;
+}
+
+.sheet-thumb-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  color: #9ca3af;
+}
+
+.sheet-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.sheet-name {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #222;
+}
+
+.sheet-price {
+  font-size: 22rpx;
+  color: #6b7280;
 }
 
 .asset-card.selected {
