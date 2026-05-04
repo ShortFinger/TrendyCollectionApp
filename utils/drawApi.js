@@ -58,3 +58,30 @@ export function simulateConfirmPaid(orderNumber, token) {
     data: { orderNumber }
   })
 }
+
+export function fetchPityState(activityId) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/pity-state',
+    method: 'GET',
+    data: { activityId }
+  })
+}
+
+export function fetchDrawRecords(activityId, scope, page, pageSize) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/draw-records',
+    method: 'GET',
+    data: { activityId, scope, page, pageSize }
+  })
+}
+
+export function fetchRewardLevelsDetail(activityId) {
+  return request({
+    base: API_BASE.order,
+    url: '/api/reward-levels-detail',
+    method: 'GET',
+    data: { activityId }
+  })
+}
