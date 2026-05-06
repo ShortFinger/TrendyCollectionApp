@@ -47,6 +47,44 @@ function pickString(v) {
 }
 
 /**
+ * 从活动卡片槽收集 activityId（支持已发布页 map 形 slots，或单槽数组形 slots）。
+ *
+ * @param {Record<string, { items?: Array }> | Array<{ slotType?: string, items?: Array }>} slots
+ * @returns {string[]}
+ */
+export function collectActivityIdsFromSlots(slots) {
+  let targetSlot = null
+  if (Array.isArray(slots)) {
+    targetSlot =
+      slots.find((s) => s.slotType === SLOT_TYPE) ||
+      slots.find((s) => (s.items || []).some((i) => i.contentType === CONTENT_TYPE))
+  } else {
+    targetSlot = resolveActivityCardTargetSlot(slots)
+  }
+  if (!targetSlot?.items?.length) return []
+
+  const ids = []
+  const seen = new Set()
+  const sorted = [...targetSlot.items].sort(
+    (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+  )
+  for (const it of sorted) {
+    if (it.contentType !== CONTENT_TYPE) continue
+    const rawPayload = it.payload
+    if (rawPayload == null) continue
+    const payload = coercePayloadForRender(rawPayload)
+    if (!isRenderablePayload(payload) || Array.isArray(payload)) continue
+    if (Object.prototype.toString.call(payload) !== '[object Object]') continue
+    const aid = pickString(payload.activityId)
+    if (aid && !seen.has(aid)) {
+      seen.add(aid)
+      ids.push(aid)
+    }
+  }
+  return ids
+}
+
+/**
  * @param {Record<string, { sortOrder?: number, items?: Array<{ contentType?: string, payload?: Object|Array|null, sortOrder?: number, activityDisplay?: Object }> }>} slots 已发布页 slots（按 slotType 为键）
  * @returns {Array<{ id: string, title: string, desc: string, author: string, tag: string, likes: number, coverUrl: string, priceText: string, jumpType: string, jumpUrl: string, activityTypeCn?: string, activityType?: string }>}
  */
