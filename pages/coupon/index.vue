@@ -16,12 +16,13 @@
           v-for="tab in tabs"
           :key="tab.key"
           class="tab-item"
+          @click="switchTab(tab)"
         >
           <text
             class="tab-text"
             :class="{ 'tab-text-active': tab.key === activeTab }"
           >
-            {{ tab.label }}
+            {{ tab.label }}{{ tab.count != null ? ` (${tab.count})` : '' }}
           </text>
         </view>
       </view>
@@ -29,34 +30,52 @@
       <!-- 兑换码输入 -->
       <view class="exchange-row">
         <input
+          v-model="exchangeCode"
           class="exchange-input"
           placeholder="输入兑换码"
           placeholder-class="exchange-placeholder"
         />
-        <view class="exchange-btn">
+        <view class="exchange-btn" @click="handleExchange">
           <text class="exchange-btn-text">兑换</text>
         </view>
       </view>
 
+      <!-- 加载状态 -->
+      <view v-if="loading" class="loading-wrap">
+        <text class="loading-text">加载中…</text>
+      </view>
+
+      <!-- 空状态 -->
+      <view v-else-if="!couponList.length" class="empty-wrap">
+        <text class="empty-text">暂无优惠券</text>
+      </view>
+
       <!-- 优惠券列表 -->
-      <view class="coupon-list">
+      <view v-else class="coupon-list">
         <view
           v-for="item in couponList"
-          :key="item.id"
+          :key="item.userCouponId"
           class="coupon-card"
         >
           <!-- 左侧彩色金额区 -->
           <view
             class="coupon-left"
-            :style="{ backgroundColor: item.leftBg }"
+            :style="{ backgroundColor: getCouponColor(item.couponType) }"
           >
             <view class="coupon-left-top">
-              <text v-if="item.amount" class="coupon-amount-prefix">￥</text>
-              <text v-if="item.amount" class="coupon-amount">{{ item.amount }}</text>
-              <text v-if="item.tagText" class="coupon-tag-text">{{ item.tagText }}</text>
+              <template v-if="item.couponType === 'CASH'">
+                <text class="coupon-amount-prefix">￥</text>
+                <text class="coupon-amount">{{ item.discountValue / 100 }}</text>
+              </template>
+              <template v-else-if="item.couponType === 'DISCOUNT'">
+                <text class="coupon-amount">{{ item.discountValue / 10 }}</text>
+                <text class="coupon-amount-prefix">折</text>
+              </template>
+              <text v-else-if="item.couponType === 'FREE_SHIPPING'" class="coupon-tag-text">免运费</text>
+              <text v-else-if="item.couponType === 'EXCHANGE'" class="coupon-tag-text">兑换券</text>
             </view>
-            <text v-if="item.condition" class="coupon-condition">
-              {{ item.condition }}
+            <text class="coupon-condition">
+              {{ item.minSpend > 0 ? '满' + item.minSpend / 100 + '使用' : '无门槛' }}
             </text>
 
             <!-- 上下缺口 -->
@@ -68,31 +87,31 @@
           <view class="coupon-right">
             <view class="coupon-right-main">
               <view class="coupon-right-header">
-                <text class="coupon-title">{{ item.title }}</text>
+                <text class="coupon-title">{{ item.couponName }}</text>
               </view>
               <view class="coupon-sub-row">
-                <text class="coupon-expire">有效期至：{{ item.expire }}</text>
+                <text class="coupon-expire">有效期至：{{ formatDate(item.validEnd) }}</text>
               </view>
 
               <view class="coupon-tag-row">
-                <view
-                  v-for="tag in item.tags"
-                  :key="tag"
-                  class="coupon-mini-tag"
-                >
-                  <text class="coupon-mini-tag-text">{{ tag }}</text>
+                <view class="coupon-mini-tag">
+                  <text class="coupon-mini-tag-text">{{ getScopeLabel(item.scopeType) }}</text>
                 </view>
               </view>
             </view>
 
             <view class="coupon-right-footer">
               <view
-                v-if="item.statusText"
+                v-if="getStatusText(item)"
                 class="coupon-status"
               >
-                <text class="coupon-status-text">{{ item.statusText }}</text>
+                <text class="coupon-status-text">{{ getStatusText(item) }}</text>
               </view>
-              <view class="coupon-use-btn">
+              <view
+                v-if="activeTab === 'UNUSED'"
+                class="coupon-use-btn"
+                @click="handleUse(item)"
+              >
                 <text class="coupon-use-btn-text">去使用</text>
               </view>
             </view>
@@ -107,42 +126,140 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
+import { fetchUserCoupons, claimByExchangeCode } from '@/utils/couponApi.js'
+
+const activeTab = ref('UNUSED')
+const couponList = ref([])
+const exchangeCode = ref('')
+const loading = ref(false)
+
+const tabCounts = ref({ UNUSED: null, USED: null, EXPIRED: null })
+
 const tabs = [
-  { key: 'available', label: '可用 (5)' },
-  { key: 'used', label: '已使用 (12)' },
-  { key: 'expired', label: '已过期' }
+  { key: 'UNUSED', label: '可用' },
+  { key: 'USED', label: '已使用' },
+  { key: 'EXPIRED', label: '已过期' }
 ]
 
-const activeTab = 'available'
+const COLOR_MAP = {
+  CASH: '#06c167',
+  DISCOUNT: '#ff8a34',
+  FREE_SHIPPING: '#4285f4',
+  EXCHANGE: '#e53935'
+}
 
-const couponList = [
-  {
-    id: 1,
-    leftBg: '#06c167',
-    amount: '20',
-    tagText: '全场通用减免券',
-    condition: '满 129 使用',
-    title: '全场通用减免券',
-    expire: '2026.02.15',
-    tags: ['商城通用'],
-    statusText: '即将过期'
-  },
-  {
-    id: 2,
-    leftBg: '#ff8a34',
-    amount: '',
-    tagText: '免配送费',
-    condition: '',
-    title: '新会员首单免邮',
-    expire: '2026.01.30',
-    tags: ['新人专属'],
-    statusText: ''
+const SCOPE_LABEL = {
+  ALL: '商城通用',
+  ACTIVITY: '指定活动',
+  PRODUCT: '指定商品'
+}
+
+function getCouponColor(type) {
+  return COLOR_MAP[type] || '#06c167'
+}
+
+function getScopeLabel(scope) {
+  return SCOPE_LABEL[scope] || '商城通用'
+}
+
+function formatDate(ts) {
+  if (!ts) return ''
+  const d = new Date(ts)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}.${m}.${day}`
+}
+
+function getStatusText(item) {
+  if (item.status === 'USED') return '已使用'
+  if (item.status === 'EXPIRED') return '已过期'
+  if (item.status === 'UNUSED' && item.validEnd) {
+    const remain = new Date(item.validEnd).getTime() - Date.now()
+    if (remain > 0 && remain < 3 * 24 * 60 * 60 * 1000) return '即将过期'
   }
-]
+  return ''
+}
+
+async function loadCoupons(status) {
+  loading.value = true
+  try {
+    const data = await fetchUserCoupons(status)
+    const list = Array.isArray(data) ? data : (data?.records || data?.list || [])
+    couponList.value = list
+    tabCounts.value[status] = list.length
+  } catch (err) {
+    console.error('loadCoupons error', err)
+    couponList.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+function switchTab(tab) {
+  if (activeTab.value === tab.key) return
+  activeTab.value = tab.key
+  loadCoupons(tab.key)
+}
+
+async function handleExchange() {
+  const code = exchangeCode.value.trim()
+  if (!code) {
+    uni.showToast({ title: '请输入兑换码', icon: 'none' })
+    return
+  }
+  try {
+    await claimByExchangeCode(code)
+    uni.showToast({ title: '兑换成功', icon: 'success' })
+    exchangeCode.value = ''
+    loadCoupons(activeTab.value)
+  } catch (err) {
+    uni.showToast({ title: err?.message || err?.msg || '兑换失败', icon: 'none' })
+  }
+}
+
+function handleUse(item) {
+  const nav = item.navigateType
+  const params = item.navigateParams || {}
+
+  if (nav === 'CUSTOM' && item.navigateUrl) {
+    uni.navigateTo({ url: item.navigateUrl })
+    return
+  }
+
+  if (nav === 'PRESET') {
+    const target = params.target || params.page
+    switch (target) {
+      case 'HOME':
+        uni.switchTab({ url: '/pages/index/index' })
+        return
+      case 'ACTIVITY':
+        if (params.activityId) {
+          uni.navigateTo({ url: '/pages/activity/other/index?id=' + params.activityId })
+        }
+        return
+      case 'PRODUCT':
+        if (params.productId) {
+          uni.navigateTo({ url: '/pages/product/index?id=' + params.productId })
+        }
+        return
+      case 'CATEGORY':
+        uni.switchTab({ url: '/pages/category/index' })
+        return
+    }
+  }
+
+  uni.switchTab({ url: '/pages/index/index' })
+}
 
 const goBack = () => {
   uni.navigateBack()
 }
+
+onMounted(() => {
+  loadCoupons('UNUSED')
+})
 </script>
 
 <style lang="scss">
@@ -255,6 +372,28 @@ const goBack = () => {
 .exchange-btn-text {
   font-size: 26rpx;
   color: #ffffff;
+}
+
+.loading-wrap {
+  margin-top: 120rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.loading-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.empty-wrap {
+  margin-top: 120rpx;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #999999;
 }
 
 .coupon-list {
@@ -417,4 +556,3 @@ const goBack = () => {
   height: 80rpx;
 }
 </style>
-
